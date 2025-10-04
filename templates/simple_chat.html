@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic ChatBot - Enterprise Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+        
+        .container {
+            width: 95%;
+            max-width: 900px;
+            height: 95vh;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 20px 20px 0 0;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 15px;
+            margin-bottom: 20px;
+            max-height: calc(95vh - 300px);
+        }
+        
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .message.user {
+            flex-direction: row-reverse;
+        }
+        
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin: 0 10px;
+        }
+        
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);
+            color: white;
+        }
+        
+        .message.bot .message-avatar {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+        }
+        
+        .message-content {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            word-wrap: break-word;
+            position: relative;
+        }
+        
+        .message.user .message-content {
+            background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .message.bot .message-content {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            border: 1px solid rgba(108, 92, 231, 0.2);
+            border-bottom-left-radius: 5px;
+        }
+        
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .quick-action-btn {
+            background: rgba(108, 92, 231, 0.1);
+            border: 1px solid rgba(108, 92, 231, 0.3);
+            color: #6c5ce7;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .quick-action-btn:hover {
+            background: rgba(108, 92, 231, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 12px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        #messageInput {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid rgba(108, 92, 231, 0.2);
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.8);
+        }
+        
+        #messageInput:focus {
+            border-color: #6c5ce7;
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+        }
+        
+        #sendButton {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+        
+        #sendButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
+        }
+        
+        #sendButton:disabled {
+            background: #ddd;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        
+        .status-bar {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status-bar.online {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
+        
+        .welcome-message {
+            text-align: center;
+            padding: 30px 20px;
+        }
+        
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .welcome-subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .features {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        
+        .feature-badge {
+            background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .pro-tip {
+            background: rgba(108, 92, 231, 0.1);
+            border: 1px solid rgba(108, 92, 231, 0.2);
+            border-radius: 15px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .pro-tip-title {
+            color: #6c5ce7;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .pro-tip-text {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .pro-tip-example {
+            color: #999;
+            font-style: italic;
+            font-size: 13px;
+        }
+        
+        @media (max-width: 768px) {
+            .chat-container {
+                padding: 10px;
+            }
+            
+            .message-content {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👋 Welcome to the Dynamic ChatBot!</h1>
+            <p>I'm powered by advanced AI with zero hardcoded patterns. I can adapt to any conversation naturally!</p>
+        </div>
+        
+        <div class="chat-container">
+            <div id="messages" class="messages">
+                <div class="welcome-message">
+                    <div class="welcome-title">🚀 Dynamic AI Assistant</div>
+                    <div class="welcome-subtitle">I'm powered by advanced AI with zero hardcoded patterns. I can adapt to any conversation naturally!</div>
+                    
+                    <div class="features">
+                        <span class="feature-badge">🧠 AI Intelligence</span>
+                        <span class="feature-badge">📊 Smart Data Collection</span>
+                        <span class="feature-badge">🚫 No Double Questions</span>
+                        <span class="feature-badge">⚡ Adaptive Flow</span>
+                    </div>
+                    
+                    <div class="pro-tip">
+                        <div class="pro-tip-title">💡 Pro Tip:</div>
+                        <div class="pro-tip-text">Just tell me what you want to do and provide any information you have. I'll figure out the rest!</div>
+                        <div class="pro-tip-example">Example: "I want to register as a user. My name is John Doe, email john@example.com, and my phone is 555-123-4567"</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="quick-actions">
+                <button class="quick-action-btn" onclick="quickMessage('Complete User Registration')">📝 Complete User Registration</button>
+                <button class="quick-action-btn" onclick="quickMessage('Complete Supplier Registration')">🏢 Complete Supplier Registration</button>
+                <button class="quick-action-btn" onclick="quickMessage('Start Conversation')">💬 Start Conversation</button>
+                <button class="quick-action-btn" onclick="quickMessage('Training Help')">📚 Training Help</button>
+            </div>
+            
+            <div class="typing-indicator" id="typingIndicator">
+                Bot is typing...
+            </div>
+            
+            <div class="input-container">
+                <input type="text" id="messageInput" placeholder="Tell me what you'd like to do and any information you have..." maxlength="500">
+                <button id="sendButton">Send</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="statusBar" class="status-bar">
+        Connecting...
+    </div>
+
+    <script>
+        let sessionId = 'simple_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        const messagesContainer = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const statusBar = document.getElementById('statusBar');
+        
+        // Initialize
+        checkApiStatus();
+        messageInput.focus();
+        
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+            
+            // Add avatar
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'message-avatar';
+            avatarDiv.innerHTML = isUser ? '👤' : '🤖';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            // Format content with enhanced markdown support
+            content = content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br>')
+                .replace(/📝|🏢|💬|📚|🔐|✅|🎉|⚠️|❌/g, '<span style="font-size: 1.2em;">$&</span>');
+            
+            contentDiv.innerHTML = content;
+            
+            messageDiv.appendChild(avatarDiv);
+            messageDiv.appendChild(contentDiv);
+            
+            // Remove welcome message if it exists
+            const welcomeMsg = messagesContainer.querySelector('.welcome-message');
+            if (welcomeMsg) {
+                welcomeMsg.remove();
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function quickMessage(message) {
+            messageInput.value = message;
+            sendMessage();
+        }
+        
+        function showTyping() {
+            typingIndicator.style.display = 'block';
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function hideTyping() {
+            typingIndicator.style.display = 'none';
+        }
+        
+        function setButtonState(disabled) {
+            sendButton.disabled = disabled;
+            messageInput.disabled = disabled;
+        }
+        
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, true);
+            messageInput.value = '';
+            
+            // Show typing and disable input
+            showTyping();
+            setButtonState(true);
+            
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: sessionId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.response) {
+                    addMessage(data.response);
+                } else {
+                    addMessage('Sorry, I encountered an error. Please try again.');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('Connection error. Please check your internet connection and try again.');
+            } finally {
+                hideTyping();
+                setButtonState(false);
+                messageInput.focus();
+            }
+        }
+        
+        async function checkApiStatus() {
+            try {
+                const response = await fetch('/api-status');
+                const data = await response.json();
+                
+                if (data.status === 'healthy') {
+                    statusBar.textContent = '✅ Connected and ready';
+                    statusBar.className = 'status-bar online';
+                } else {
+                    statusBar.textContent = '⚠️ Limited functionality';
+                    statusBar.className = 'status-bar';
+                }
+            } catch (error) {
+                statusBar.textContent = '❌ Connection error';
+                statusBar.className = 'status-bar';
+            }
+        }
+        
+        // Check status periodically
+        setInterval(checkApiStatus, 30000);
+    </script>
+</body>
+</html>
