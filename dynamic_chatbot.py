@@ -19,7 +19,19 @@ try:
     logger = logging.getLogger(__name__)
     logger.info("✅ API Integration layer loaded - will use API endpoints")
 except ImportError:
+    USE_API_INTEGRATION = False
+    logger = logging.getLogger(__name__)
+    logger.warning("⚠️ API Integration layer not available - will use direct database")
     from db import insert_document, check_supplier_eligibility
+
+# Import session management
+try:
+    from session_manager import SessionManager
+    session_manager = SessionManager()
+    logger.info("✅ Session Manager loaded")
+except ImportError:
+    session_manager = None
+    logger.warning("⚠️ Session Manager not available")
     USE_API_INTEGRATION = False
     logger = logging.getLogger(__name__)
     logger.info("⚠️ API Integration not available - using direct database access")
@@ -66,19 +78,30 @@ class DynamicChatBot:
             logger.warning("⚠️ Running in LIMITED mode without AI")
     
     def process_message(self, user_input: str, session_id: str = "default") -> Dict[str, Any]:
-        """Process any user message dynamically"""
+        """Process any user message dynamically with session tracking"""
         logger.info(f"💬 [{session_id}] User: {user_input}")
         
-        # Initialize session
+        # Initialize conversation state
         if session_id not in self.conversation_state:
             self.conversation_state[session_id] = {
                 "history": [],
                 "current_task": None,
                 "collected_data": {},
-                "context": {}
+                "context": {},
+                "session_initialized": False
             }
         
         state = self.conversation_state[session_id]
+        
+        # Track user activity in session management system
+        from session_manager import session_manager
+        if state.get("user_validated") and state.get("employee_id"):
+            session_manager.update_session_activity(session_id, {
+                "type": "user_message",
+                "message": user_input,
+                "employee_id": state.get("employee_id")
+            })
+        
         state["history"].append({"role": "user", "content": user_input})
         
         # Process with AI or fallback
@@ -103,7 +126,11 @@ class DynamicChatBot:
         if not state.get("user_validated", False):
             return self._handle_user_validation(user_input, state, session_id)
         
-        # Build dynamic context
+        # Route to Query Node if this is a query operation
+        if state.get("operation_type") == "query" and state.get("user_validated", False):
+            return self._process_query_node(user_input, state, session_id)
+        
+        # Build dynamic context for data operations
         context = self._build_context(state)
         
         prompt = f"""You are an intelligent assistant helping users with various tasks. 
@@ -463,6 +490,20 @@ Please provide the missing information and try again.""",
             if result["success"]:
                 task_name = state["current_task"].replace("_", " ").title()
                 
+                # Track successful registration in user session
+                if session_manager and "session_id" in state and state["session_id"]:
+                    try:
+                        session_manager.track_user_registration(
+                            state["session_id"],
+                            state["current_task"],
+                            state["current_task"],
+                            state["collected_data"],
+                            result.get('inserted_id')
+                        )
+                        logger.info(f"Tracked registration {state['current_task']} for session {state['session_id']}")
+                    except Exception as e:
+                        logger.warning(f"Failed to track registration: {e}")
+                
                 # Special success message for supplier registration
                 if "supplier" in state["current_task"].lower():
                     response_message = f"""🎉 **Supplier Registration Successful!**
@@ -813,9 +854,21 @@ How else can I help you today?""",
         """Analyze what the user wants to do before asking for credentials"""
         
         try:
+            # Check if user provided Employee ID in their initial request
+            user_input_upper = user_input.upper()
+            embedded_employee_id = None
+            if "EMP" in user_input_upper:
+                import re
+                match = re.search(r'EMP\d+', user_input_upper)
+                if match:
+                    embedded_employee_id = match.group()
+            
             prompt = f"""Analyze this user request and determine what they want to do:
 
 User: "{user_input}"
+
+IMPORTANT: Check if the user has provided an Employee ID (like EMP001, EMP002, etc.) in their message.
+If they have, they should be immediately authenticated if they are authorized for the requested operation.
 
 Available collections and their typical use cases:
 - user_registration: Register new users/employees
@@ -845,10 +898,51 @@ Available collections and their typical use cases:
 - warehouse_management: Manage warehouse operations
 - And 24 other specialized business operations...
 
+Determine if this is:
+1. DATA CREATION/UPDATE: User wants to register, create, submit, schedule, or modify something
+2. DATA QUERY: User is asking questions, requesting information, wanting to search or view data
+
+Query examples:
+- "How many orders in June 2025?" -> purchase_order query
+- "When did employee 37644 check in?" -> attendance_tracking query
+- "Show all leave requests for HR department" -> employee_leave_request query
+- "List suppliers in California" -> supplier_registration query
+- "What is the status of purchase order 12345?" -> purchase_order query
+- "I already registered as supplier, this is my id 68de3..., I want my details" -> supplier_registration query
+- "Get my supplier information using ID 68de3..." -> supplier_registration query
+- "Show my user registration details" -> user_registration query
+- "I already register as role management, this is my id 68df..., I want my details" -> role_management query
+- "Get my role management information" -> role_management query
+- "I registered for training, show my details" -> training_registration query
+- "My contract management ID is xyz, get my details" -> contract_management query
+- "show me which details i given in structured way" -> customer_support_ticket query (user wants to see their recent ticket)
+- "show me my details" -> Last created collection query (find user's most recent record)
+- "what did I provide" -> Last created collection query (retrieve user's recent submission)
+- "display my information" -> Last created collection query (show user's data)
+
+**Critical Collection Detection Rules**:
+1. If user mentions "supplier" -> supplier_registration
+2. If user mentions "role management" -> role_management  
+3. If user mentions "training" -> training_registration
+4. If user mentions "contract" -> contract_management
+5. If user mentions "purchase order" -> purchase_order
+6. If user mentions "user registration" or just "user" -> user_registration
+7. If user mentions "support ticket" or "ticket" -> customer_support_ticket
+8. Always match the EXACT collection name the user mentions in their request
+
+**Context-Aware Query Detection**:
+- If user asks "show me my details" or "what did I provide" or "display my information" WITHOUT specifying collection:
+  -> This is a contextual query to retrieve their most recent submission
+  -> Look at session context to determine which collection they last interacted with
+  -> Default to customer_support_ticket if no context available
+
 Respond with JSON:
 {{
     "detected_task": "collection_name or null",
     "user_intent": "clear description of what user wants",
+    "operation_type": "create|query|update|general",
+    "query_type": "count|list|find|search|aggregate|null",
+    "natural_query": "extracted query intent for natural language processing",
     "requires_authorization": true/false,
     "required_roles": ["list", "of", "roles", "who", "can", "do", "this"],
     "confidence": 0.0-1.0,
@@ -863,12 +957,78 @@ Respond with JSON:
                 state["detected_task"] = analysis["detected_task"]
                 state["required_roles"] = analysis.get("required_roles", ["admin"])
                 state["user_intent"] = analysis.get("user_intent")
+                state["operation_type"] = analysis.get("operation_type", "create")
+                state["query_type"] = analysis.get("query_type")
+                state["natural_query"] = analysis.get("natural_query")
                 
                 if analysis.get("requires_authorization", True):
                     # Determine who can access this
                     access_requirements = get_endpoint_access_requirements()
                     required_positions = access_requirements.get(analysis["detected_task"], ["admin"])
                     
+                    # Check if user provided Employee ID in their request
+                    if embedded_employee_id:
+                        # Validate the embedded Employee ID immediately
+                        task_type = analysis["detected_task"]
+                        validation_result = validate_user_position(embedded_employee_id, required_positions)
+                        
+                        if validation_result["valid"]:
+                            # Create user session immediately
+                            if session_manager:
+                                try:
+                                    user_session_data = session_manager.create_user_session(
+                                        embedded_employee_id, 
+                                        validation_result["user_details"]
+                                    )
+                                    state["session_id"] = user_session_data.get("session_id")
+                                    logger.info(f"Created user session {state['session_id']} for {embedded_employee_id}")
+                                except Exception as e:
+                                    logger.warning(f"Failed to create session: {e}")
+                            
+                            # Set user as validated and proceed
+                            state["user_validated"] = True
+                            state["employee_id"] = embedded_employee_id
+                            state["user_position"] = validation_result["user_details"].get("position", "admin")
+                            
+                            # Route to appropriate processor based on operation type
+                            if analysis.get("operation_type") == "query":
+                                return self._process_query_node(user_input, state, session_id)
+                            else:
+                                # Continue with normal data operation flow
+                                return {
+                                    "status": "authenticated_proceed",
+                                    "response": f"""✅ **Access Granted - Session Active**
+
+Welcome, {validation_result["user_details"].get("name", "User")} ({validation_result["user_details"].get("position", "admin")})
+🆔 Employee ID: {embedded_employee_id}
+📅 Login: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+
+You are authorized to proceed with: **{analysis.get('user_intent', 'this operation')}**
+
+Please provide the required information to continue.""",
+                                    "intent": analysis.get("user_intent"),
+                                    "task": analysis["detected_task"],
+                                    "operation_type": analysis.get("operation_type", "create"),
+                                    "session_id": session_id
+                                }
+                        else:
+                            # Invalid Employee ID
+                            return {
+                                "status": "access_denied",
+                                "response": f"""❌ **Access Denied**
+
+Employee ID {embedded_employee_id} is not authorized for this operation.
+
+{validation_result['reason']}
+
+**Required Positions for {analysis['detected_task'].replace('_', ' ').title()}:**
+{', '.join(required_positions)}
+
+Please contact your administrator if you believe this is an error.""",
+                                "session_id": session_id
+                            }
+                    
+                    # No embedded Employee ID - request it
                     authorized_users = []
                     if "admin" in required_positions:
                         authorized_users.append("**EMP001** (Admin User)")
@@ -896,6 +1056,9 @@ This operation requires appropriate authorization. Only the following personnel 
 If you are one of these authorized personnel, please provide your **Employee ID** to continue.""",
                         "intent": analysis.get("user_intent"),
                         "task": analysis["detected_task"],
+                        "operation_type": analysis.get("operation_type", "create"),
+                        "query_type": analysis.get("query_type"),
+                        "natural_query": analysis.get("natural_query"),
                         "required_roles": required_positions,
                         "session_id": session_id
                     }
@@ -948,6 +1111,242 @@ Please tell me what you'd like to do, and I'll guide you through the process."""
             return {
                 "status": "error",
                 "response": "I'm having trouble understanding your request. Could you please rephrase what you'd like to do?",
+                "session_id": session_id
+            }
+
+    def _query_via_api(self, collection_name: str, mongodb_query: Dict, query_config: Dict) -> Dict[str, Any]:
+        """Query data using API endpoints instead of direct database access"""
+        try:
+            import requests
+            
+            # Map collection names to API endpoints
+            # The API integration has endpoints for all 49 collections
+            api_url = f"http://localhost:5000/api/{collection_name}"
+            
+            logger.info(f"🔗 Calling API endpoint: {api_url}")
+            logger.info(f"📄 Query parameters: {mongodb_query}")
+            
+            # Convert MongoDB query to API parameters
+            params = {}
+            
+            # Handle ObjectId queries - convert to string for API
+            if "_id" in mongodb_query:
+                id_value = mongodb_query["_id"]
+                # Handle different ObjectId formats
+                if isinstance(id_value, dict) and "$oid" in id_value:
+                    params["_id"] = id_value["$oid"]
+                elif hasattr(id_value, '__str__'):
+                    params["_id"] = str(id_value)
+                else:
+                    params["_id"] = id_value
+            
+            # Add other query parameters
+            for key, value in mongodb_query.items():
+                if key != "_id":
+                    if isinstance(value, dict):
+                        # Handle complex query operators by converting to string
+                        params[key] = str(value)
+                    else:
+                        params[key] = str(value) if value is not None else ""
+            
+            logger.info(f"🎯 Final API parameters: {params}")
+            
+            # Make API request
+            response = requests.get(api_url, params=params, timeout=10)
+            
+            logger.info(f"📡 API Response Status: {response.status_code}")
+            logger.info(f"📋 API Response Preview: {response.text[:200]}...")
+            
+            if response.status_code == 200:
+                api_data = response.json()
+                if api_data.get("status") == "success":
+                    data = api_data.get("data", [])
+                    count = api_data.get("count", len(data))
+                    logger.info(f"✅ API Success: Found {count} records")
+                    return {
+                        "success": True,
+                        "data": data,
+                        "count": count
+                    }
+                else:
+                    logger.warning(f"❌ API Error: {api_data.get('message', 'Unknown error')}")
+                    return {
+                        "success": False,
+                        "error": api_data.get("message", "API query failed")
+                    }
+            else:
+                logger.error(f"❌ API Request Failed: {response.status_code} - {response.text}")
+                return {
+                    "success": False,
+                    "error": f"API request failed with status {response.status_code}: {response.text}"
+                }
+                
+        except requests.exceptions.ConnectionError:
+            # Fallback to direct database access if API is not available
+            logger.warning("API server not available, falling back to database")
+            return self._query_via_database(collection_name, mongodb_query, query_config)
+        except Exception as e:
+            logger.error(f"API query error: {e}")
+            return {
+                "success": False,
+                "error": f"API query failed: {str(e)}"
+            }
+
+    def _query_via_database(self, collection_name: str, mongodb_query: Dict, query_config: Dict) -> Dict[str, Any]:
+        """Fallback method for direct database queries"""
+        try:
+            from db import get_database
+            from bson import ObjectId
+            
+            db = get_database()
+            collection = db[collection_name]
+            operation = query_config.get("mongodb_operation", "find")
+            
+            # Handle ObjectId conversion if needed
+            if "_id" in mongodb_query:
+                id_value = mongodb_query["_id"]
+                if isinstance(id_value, str) and len(id_value) == 24:
+                    try:
+                        mongodb_query["_id"] = ObjectId(id_value)
+                    except Exception:
+                        pass
+            
+            if operation == "count_documents":
+                result = collection.count_documents(mongodb_query)
+                return {"success": True, "count": result, "data": []}
+            elif operation == "find":
+                try:
+                    limit = int(query_config.get("limit", 50))
+                except (ValueError, TypeError):
+                    limit = 50
+                
+                results = list(collection.find(mongodb_query).limit(limit))
+                return {"success": True, "data": results, "count": len(results)}
+            else:
+                return {"success": False, "error": "Unsupported operation"}
+                
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def _process_query_node(self, user_input: str, state: Dict, session_id: str) -> Dict[str, Any]:
+        """Query Node: Process natural language queries and convert to MongoDB operations"""
+        
+        try:
+            # Extract query parameters from state
+            collection_name = state.get("detected_task")
+            natural_query = state.get("natural_query", user_input)
+            query_type = state.get("query_type", "find")
+            
+            # Generate MongoDB query from natural language
+            query_prompt = f"""Convert this natural language query to MongoDB query for collection '{collection_name}':
+
+Natural Query: "{natural_query}"
+Query Type: {query_type}
+Collection: {collection_name}
+
+Available fields for {collection_name}: {list(COLLECTION_SCHEMAS.get(collection_name, {}).keys())}
+
+IMPORTANT: If the query contains a MongoDB ObjectId (like _id 68de3a043af7466cd71bfff9), use it to find the specific document.
+
+Convert to MongoDB operations and provide results formatting:
+
+Respond with JSON:
+{{
+    "mongodb_query": {{"field": "value"}},
+    "mongodb_operation": "find|count_documents|aggregate",
+    "sort_criteria": {{"field": 1}},
+    "limit": 10,
+    "projection": {{}},
+    "aggregation_pipeline": [],
+    "result_format": "list|count|summary",
+    "response_template": "How to format the results for user"
+}}
+
+Examples:
+- "How many orders in June 2025?" -> {{"mongodb_query": {{"created_at": {{"$gte": "2025-06-01", "$lt": "2025-07-01"}}}}, "mongodb_operation": "count_documents", "limit": 10}}
+- "Show employee 37644 attendance" -> {{"mongodb_query": {{"employee_id": "37644"}}, "mongodb_operation": "find", "limit": 10}}
+- "List all pending leave requests" -> {{"mongodb_query": {{"status": "pending"}}, "mongodb_operation": "find", "limit": 10}}
+- "_id 68de3a043af7466cd71bfff9 my details" -> {{"mongodb_query": {{"_id": "68de3a043af7466cd71bfff9"}}, "mongodb_operation": "find", "limit": 1}}
+- "this is my document id 68e116d1b88401b56ae6c4ca.i want my details" -> {{"mongodb_query": {{"_id": "68e116d1b88401b56ae6c4ca"}}, "mongodb_operation": "find", "limit": 1}}
+- "document ID 68e116d1b88401b56ae6c4ca details" -> {{"mongodb_query": {{"_id": "68e116d1b88401b56ae6c4ca"}}, "mongodb_operation": "find", "limit": 1}}
+
+**CRITICAL RULES**:
+1. For ObjectId queries (_id field), use simple string format like "_id": "68de3a043af7466cd71bfff9", NOT $oid format
+2. When user provides a 24-character hex string (document ID), ALWAYS query by _id field
+3. Set limit to 1 for document ID queries to ensure single result
+4. Look for patterns: "document id", "doc id", "id", followed by 24-character hex string
+
+Return ONLY valid JSON."""
+
+            response = self.model.generate_content(query_prompt)
+            query_config = self._parse_json_response(response.text)
+            
+            if not query_config:
+                return {
+                    "status": "error",
+                    "response": "I couldn't understand your query. Could you please rephrase it?",
+                    "session_id": session_id
+                }
+            
+            # Execute the query using API endpoints
+            from bson import ObjectId
+            import requests
+            
+            try:
+                # Use API integration instead of direct database access
+                mongodb_query = query_config.get("mongodb_query", {})
+                operation = query_config.get("mongodb_operation", "find")
+                
+                # Call the appropriate API endpoint
+                api_result = self._query_via_api(collection_name, mongodb_query, query_config)
+                
+                # Process the API result
+                if api_result.get("success"):
+                    results = api_result.get("data", [])
+                    count = api_result.get("count", 0)
+                    
+                    if operation == "count_documents" or count == 0:
+                        if count > 0:
+                            response_text = f"🔢 **Query Results**\n\nFound **{count}** records matching your criteria."
+                        else:
+                            response_text = "📭 **No Results Found**\n\nNo records match your query criteria."
+                    else:
+                        response_text = f"📊 **Query Results** ({count} records)\n\n"
+                        for i, doc in enumerate(results[:10], 1):  # Show first 10 results
+                            response_text += f"**{i}.** "
+                            # Format document fields nicely
+                            for key, value in doc.items():
+                                if key != "_id":
+                                    response_text += f"{key}: {value}, "
+                            response_text = response_text.rstrip(", ") + "\n"
+                        
+                        if len(results) > 10:
+                            response_text += f"\n*... and {len(results) - 10} more records*"
+                else:
+                    # API query failed
+                    error_msg = api_result.get("error", "Unknown API error")
+                    response_text = f"❌ **API Query Error**\n\n{error_msg}"
+                
+                return {
+                    "status": "query_completed",
+                    "response": response_text,
+                    "query_results": api_result.get("data", []) if api_result.get("success") else [],
+                    "session_id": session_id
+                }
+                
+            except Exception as db_error:
+                logger.error(f"Database query error: {db_error}")
+                return {
+                    "status": "error",
+                    "response": f"❌ **Database Error**\n\nThere was an issue executing your query: {str(db_error)}",
+                    "session_id": session_id
+                }
+                
+        except Exception as e:
+            logger.error(f"Query processing error: {e}")
+            return {
+                "status": "error",
+                "response": "❌ **Query Processing Error**\n\nI encountered an issue processing your query. Please try again.",
                 "session_id": session_id
             }
 
@@ -1011,9 +1410,22 @@ Enter your Employee ID (e.g., EMP001):""",
             validation_result = validate_user_position(employee_id, required_positions)
         
         if validation_result['valid']:
-            # User is authorized
+            # User is authorized - create/update session
             state["user_validated"] = True
             state["user_details"] = validation_result['user_details']
+            state["employee_id"] = employee_id
+            
+            # Initialize session management for this user
+            from session_manager import session_manager, create_session_for_user
+            
+            if not state.get("session_initialized"):
+                # Create a proper user session with full details
+                user_session_id = create_session_for_user(employee_id, validation_result['user_details'])
+                state["user_session_id"] = user_session_id
+                state["login_time"] = datetime.now().isoformat()
+                state["session_initialized"] = True
+                
+                logger.info(f"Created user session {user_session_id} for {employee_id}")
             
             if task_type:
                 # Set the current task and continue processing
@@ -1022,9 +1434,11 @@ Enter your Employee ID (e.g., EMP001):""",
                 
                 return {
                     "status": "success", 
-                    "response": f"""✅ **Access Granted**
+                    "response": f"""✅ **Access Granted - Session Active**
 
 Welcome, {validation_result['user_details']['name']} ({validation_result['user_details']['position']})
+🆔 Employee ID: {employee_id}
+📅 Login: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 
 You are authorized to proceed with: **{user_intent}**
 
@@ -1032,7 +1446,9 @@ Please provide the required information to continue.""",
                     "intent": "access_granted",
                     "action": "collect_data",
                     "task": task_type,
-                    "session_id": session_id
+                    "session_id": session_id,
+                    "user_session_id": state.get("user_session_id"),
+                    "employee_id": employee_id
                 }
             else:
                 return {

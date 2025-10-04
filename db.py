@@ -633,5 +633,185 @@ def create_dummy_users():
         print("❌ MongoDB connection test failed!")
         return False
 
+def execute_query(collection_name: str, query: Dict[str, Any], operation: str = "find", 
+                 limit: int = 50, sort_criteria: Dict[str, int] = None, 
+                 projection: Dict[str, int] = None) -> Dict[str, Any]:
+    """
+    Execute a MongoDB query with proper error handling and access control
+    
+    Args:
+        collection_name: Name of the collection to query
+        query: MongoDB query dictionary
+        operation: Type of operation (find, count_documents, aggregate)
+        limit: Maximum number of documents to return
+        sort_criteria: Sort criteria dictionary
+        projection: Fields to include/exclude
+    
+    Returns:
+        Dict containing query results and metadata
+    """
+    try:
+        if db is None:
+            init_db()
+        
+        if collection_name not in db.list_collection_names():
+            return {
+                "status": "error",
+                "message": f"Collection '{collection_name}' does not exist",
+                "results": None,
+                "count": 0
+            }
+        
+        collection = db[collection_name]
+        
+        if operation == "count_documents":
+            count = collection.count_documents(query)
+            return {
+                "status": "success",
+                "message": f"Found {count} documents",
+                "results": count,
+                "count": count,
+                "operation": "count"
+            }
+        
+        elif operation == "find":
+            cursor = collection.find(query, projection or {})
+            
+            if sort_criteria:
+                cursor = cursor.sort(list(sort_criteria.items()))
+            else:
+                cursor = cursor.sort("_id", -1)  # Default sort by newest first
+            
+            cursor = cursor.limit(limit)
+            results = list(cursor)
+            
+            # Convert ObjectIds to strings for JSON serialization
+            for doc in results:
+                if "_id" in doc:
+                    doc["_id"] = str(doc["_id"])
+            
+            return {
+                "status": "success",
+                "message": f"Found {len(results)} documents",
+                "results": results,
+                "count": len(results),
+                "operation": "find",
+                "limit": limit
+            }
+        
+        elif operation == "aggregate":
+            # For future aggregation support
+            return {
+                "status": "error",
+                "message": "Aggregation not yet implemented",
+                "results": None,
+                "count": 0
+            }
+        
+        else:
+            return {
+                "status": "error",
+                "message": f"Unsupported operation: {operation}",
+                "results": None,
+                "count": 0
+            }
+    
+    except Exception as e:
+        logger.error(f"Query execution error: {e}")
+        return {
+            "status": "error",
+            "message": f"Database error: {str(e)}",
+            "results": None,
+            "count": 0
+        }
+
+def get_collections_info() -> Dict[str, Any]:
+    """
+    Get information about all collections in the database
+    
+    Returns:
+        Dict containing collection names and document counts
+    """
+    try:
+        if db is None:
+            init_db()
+        
+        collections_info = {}
+        for collection_name in db.list_collection_names():
+            count = db[collection_name].count_documents({})
+            collections_info[collection_name] = {
+                "name": collection_name,
+                "count": count,
+                "indexes": list(db[collection_name].list_indexes())
+            }
+        
+        return {
+            "status": "success",
+            "collections": collections_info,
+            "total_collections": len(collections_info)
+        }
+    
+    except Exception as e:
+        logger.error(f"Error getting collections info: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "collections": {},
+            "total_collections": 0
+        }
+
+def validate_query_access(employee_id: str, collection_name: str) -> Dict[str, Any]:
+    """
+    Validate if an employee has access to query a specific collection
+    
+    Args:
+        employee_id: Employee ID to validate
+        collection_name: Collection they want to query
+    
+    Returns:
+        Dict containing validation results
+    """
+    try:
+        if db is None:
+            init_db()
+        
+        # Get user information
+        user = db.user_registration.find_one({"employee_id": employee_id.upper()})
+        
+        if not user:
+            return {
+                "status": "error",
+                "message": f"Employee ID {employee_id.upper()} not found",
+                "has_access": False,
+                "user_position": None
+            }
+        
+        user_position = user.get("position", "").lower()
+        
+        # Get access requirements (function is in this same file)
+        access_requirements = get_endpoint_access_requirements()
+        required_positions = access_requirements.get(collection_name, ["admin"])
+        
+        has_access = (user_position in required_positions or 
+                     "admin" in user_position)
+        
+        return {
+            "status": "success",
+            "message": f"Access {'granted' if has_access else 'denied'}",
+            "has_access": has_access,
+            "user_position": user.get("position"),
+            "required_positions": required_positions,
+            "employee_id": employee_id.upper()
+        }
+    
+    except Exception as e:
+        logger.error(f"Access validation error: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "has_access": False,
+            "user_position": None
+        }
+
 if __name__ == "__main__":
     test_connection()

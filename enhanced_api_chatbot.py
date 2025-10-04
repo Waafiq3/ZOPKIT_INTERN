@@ -26,16 +26,16 @@ app = Flask(__name__)
 CORS(app)
 
 # Generic API server configuration
-GENERIC_API_URL = "http://localhost:8000"
+GENERIC_API_URL = "http://localhost:5000"
 generic_api_process = None
 
 def start_generic_api_server():
     """Check if API server is running"""
     try:
-        # Check if any API server is running on port 8000
+        # Check if any API server is running on port 5000
         response = requests.get(f"{GENERIC_API_URL}/", timeout=1)
         if response.status_code == 200:
-            logger.info("✅ API server is running on port 8000")
+            logger.info("✅ API server is running on port 5000")
             return True
     except:
         pass
@@ -44,12 +44,12 @@ def start_generic_api_server():
     try:
         response = requests.get(f"{GENERIC_API_URL}/test", timeout=1)
         if response.status_code == 200:
-            logger.info("✅ Test API server is running on port 8000")
+            logger.info("✅ Test API server is running on port 5000")
             return True
     except:
         pass
     
-    logger.warning("⚠️ No API server found on port 8000. Continuing with direct database access...")
+    logger.warning("⚠️ No API server found on port 5000. Continuing with direct database access...")
     return False
 
 def call_generic_api(endpoint: str, data: dict) -> dict:
@@ -472,6 +472,205 @@ def chat():
             "session_id": session_id if 'session_id' in locals() else "error"
         }), 500
 
+@app.route('/api/query', methods=['POST'])
+def query_data():
+    """Dedicated endpoint for natural language database queries"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                "status": "error",
+                "response": "No data provided"
+            }), 400
+        
+        query = data.get('query', '')
+        collection = data.get('collection', '')
+        employee_id = data.get('employee_id', '')
+        session_id = data.get('session_id', str(uuid.uuid4()))
+        
+        if not query.strip():
+            return jsonify({
+                "status": "error", 
+                "response": "Please provide a query"
+            }), 400
+        
+        if not collection.strip():
+            return jsonify({
+                "status": "error", 
+                "response": "Please specify a collection to query"
+            }), 400
+        
+        if not employee_id.strip():
+            return jsonify({
+                "status": "error", 
+                "response": "Employee ID required for query access"
+            }), 400
+        
+        logger.info(f"🔍 Query request - Session: {session_id[:12]}... Query: '{query[:50]}...' Collection: {collection}")
+        
+        # Validate employee access
+        from db import db_manager
+        from schema import get_endpoint_access_requirements
+        
+        try:
+            # Check if employee exists and get their position
+            user_collection = db_manager.db["user_registration"]
+            user = user_collection.find_one({"employee_id": employee_id.upper()})
+            
+            if not user:
+                return jsonify({
+                    "status": "error",
+                    "response": f"Employee ID {employee_id.upper()} not found in system"
+                }), 403
+            
+            user_position = user.get("position", "").lower()
+            
+            # Check access permissions for the collection
+            access_requirements = get_endpoint_access_requirements()
+            required_positions = access_requirements.get(collection, ["admin"])
+            
+            if user_position not in required_positions and "admin" not in user_position:
+                return jsonify({
+                    "status": "error",
+                    "response": f"Access denied. Your position '{user.get('position', 'Unknown')}' cannot query {collection}"
+                }), 403
+            
+            # Initialize chatbot and create mock state for query processing
+            from dynamic_chatbot import DynamicChatbot
+            chatbot = DynamicChatbot()
+            
+            # Create mock state with query information
+            mock_state = {
+                "intent_analyzed": True,
+                "user_validated": True,
+                "detected_task": collection,
+                "operation_type": "query",
+                "query_type": "find",
+                "natural_query": query,
+                "user_position": user_position,
+                "employee_id": employee_id.upper()
+            }
+            
+            # Process query through Query Node
+            result = chatbot._process_query_node(query, mock_state, session_id)
+            
+            response_data = {
+                "status": result.get("status", "success"),
+                "response": result.get("response", "Query processed"),
+                "session_id": session_id,
+                "collection": collection,
+                "query": query,
+                "employee_id": employee_id.upper(),
+                "user_position": user_position,
+                "query_results": result.get("query_results"),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            logger.info(f"🔍 Query completed - Status: {response_data['status']}, Employee: {employee_id.upper()}")
+            
+            return jsonify(response_data)
+            
+        except Exception as db_error:
+            logger.error(f"❌ Database query error: {db_error}")
+            return jsonify({
+                "status": "error",
+                "response": f"Database error: {str(db_error)}",
+                "session_id": session_id
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"❌ Query endpoint error: {e}")
+        return jsonify({
+            "status": "error",
+            "response": f"Sorry, I encountered an error: {str(e)}",
+            "session_id": session_id if 'session_id' in locals() else "error"
+        }), 500
+
+@app.route('/api/dashboard/<session_id>', methods=['GET'])
+def user_dashboard(session_id):
+    """Get user dashboard with session history and statistics"""
+    try:
+        # Import session manager
+        try:
+            from session_manager import SessionManager
+            session_manager = SessionManager()
+        except ImportError:
+            return jsonify({
+                "status": "error",
+                "response": "Session management not available"
+            }), 503
+        
+        # Get dashboard data
+        dashboard_data = session_manager.get_user_dashboard_data(session_id)
+        
+        if not dashboard_data:
+            return jsonify({
+                "status": "error", 
+                "response": "Session not found"
+            }), 404
+        
+        return jsonify({
+            "status": "success",
+            "session_id": session_id,
+            "dashboard": dashboard_data,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Dashboard error: {e}")
+        return jsonify({
+            "status": "error",
+            "response": f"Dashboard error: {str(e)}"
+        }), 500
+
+@app.route('/api/user-sessions/<employee_id>', methods=['GET'])
+def get_user_sessions(employee_id):
+    """Get all sessions for a specific employee"""
+    try:
+        # Import session manager
+        try:
+            from session_manager import SessionManager
+            session_manager = SessionManager()
+        except ImportError:
+            return jsonify({
+                "status": "error",
+                "response": "Session management not available"
+            }), 503
+        
+        # Get user sessions from database
+        from db import get_database
+        db = get_database()
+        
+        sessions = list(db.user_sessions.find(
+            {"employee_id": employee_id.upper()},
+            sort=[("login_time", -1)]
+        ))
+        
+        # Convert ObjectId to string
+        for session in sessions:
+            session["_id"] = str(session["_id"])
+        
+        return jsonify({
+            "status": "success",
+            "employee_id": employee_id.upper(),
+            "total_sessions": len(sessions),
+            "sessions": sessions,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ User sessions error: {e}")
+        return jsonify({
+            "status": "error",
+            "response": f"Sessions error: {str(e)}"
+        }), 500
+
+@app.route('/dashboard')
+def dashboard_page():
+    """Serve the user dashboard page"""
+    return render_template('dashboard.html')
+
 if __name__ == '__main__':
     print("\\n" + "="*80)
     print("🚀 ENHANCED DYNAMIC CHATBOT - INTEGRATED API SYSTEM!")
@@ -504,6 +703,13 @@ if __name__ == '__main__':
     print('   "Register supplier: TechCorp, email contact@techcorp.com, corporation, tax ID 123456789"')
     print('   "Schedule training for employee EMP001, Python course, start date 2025-10-15"')
     print('   "Create purchase order for supplier SUP001, laptops x10, total $15000"')
+    print("\\n🔍 Query Node Examples:")
+    print('   "How many users are registered in the system?"')
+    print('   "Show me all employees with admin position"') 
+    print('   "List pending purchase orders above $1000"')
+    print('   "When did employee EMP001 last check in?"')
+    print("\\n📡 Direct Query API: http://localhost:5001/api/query")
     print("="*80)
     
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    # Disable debug mode to prevent socket errors
+    app.run(debug=False, host='0.0.0.0', port=5001, threaded=True)

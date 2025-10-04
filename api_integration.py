@@ -11,7 +11,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 # API configuration
-GENERIC_API_URL = "http://localhost:8000"
+GENERIC_API_URL = "http://localhost:5000"
 API_TIMEOUT = 10
 
 # Collection schemas - defines required and optional fields for each collection
