@@ -287,6 +287,438 @@
                 max-width: 85%;
             }
         }
+
+        /* Workflow Panel Styles */
+        .workflow-trigger-btn {
+            background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .workflow-trigger-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 184, 148, 0.3);
+        }
+
+        .workflow-panel {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 400px;
+            height: 100vh;
+            background: white;
+            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .workflow-panel.active {
+            right: 0;
+        }
+
+        .workflow-header {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .workflow-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .workflow-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .po-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .workflow-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .workflow-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .workflow-btn.start {
+            background: #00b894;
+            color: white;
+        }
+
+        .workflow-btn.pause {
+            background: #fdcb6e;
+            color: white;
+        }
+
+        .workflow-btn.stop {
+            background: #e17055;
+            color: white;
+        }
+
+        .workflow-btn.close {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .workflow-content {
+            padding: 20px;
+        }
+
+        .workflow-progress {
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #f1f2f6;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        .workflow-steps {
+            margin-top: 20px;
+        }
+
+        .workflow-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .workflow-step.pending {
+            background: #f8f9fa;
+            border-left: 4px solid #dee2e6;
+        }
+
+        .workflow-step.active {
+            background: rgba(108, 92, 231, 0.05);
+            border-left: 4px solid #6c5ce7;
+        }
+
+        .workflow-step.completed {
+            background: rgba(0, 184, 148, 0.05);
+            border-left: 4px solid #00b894;
+        }
+
+        .step-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .step-icon.pending {
+            background: #dee2e6;
+            color: #6c757d;
+        }
+
+        .step-icon.active {
+            background: #6c5ce7;
+            color: white;
+        }
+
+        .step-icon.completed {
+            background: #00b894;
+            color: white;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .step-description {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .step-status {
+            font-size: 12px;
+            margin-top: 8px;
+            padding: 4px 10px;
+            border-radius: 15px;
+            display: inline-block;
+        }
+
+        .step-status.pending {
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+
+        .step-status.active {
+            background: rgba(108, 92, 231, 0.1);
+            color: #6c5ce7;
+        }
+
+        .step-status.completed {
+            background: rgba(0, 184, 148, 0.1);
+            color: #00b894;
+        }
+
+        /* Purchase Order Form Styles */
+
+        .po-form {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #e9ecef;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #6c5ce7;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(108, 92, 231, 0.3);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-loader {
+            display: none;
+        }
+
+        .form-result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .form-result.success {
+            background: rgba(0, 184, 148, 0.1);
+            color: #00b894;
+            border: 1px solid rgba(0, 184, 148, 0.2);
+        }
+
+        .form-result.error {
+            background: rgba(225, 112, 85, 0.1);
+            color: #e17055;
+            border: 1px solid rgba(225, 112, 85, 0.2);
+        }
+
+        /* Product Availability Styles */
+        .check-availability-btn {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .check-availability-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(116, 185, 255, 0.3);
+        }
+
+        .product-availability {
+            background: rgba(116, 185, 255, 0.05);
+            border: 1px solid rgba(116, 185, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .product-availability h4 {
+            margin: 0 0 15px 0;
+            color: #0984e3;
+            font-size: 16px;
+        }
+
+        .products-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 10px;
+        }
+
+        .product-item {
+            background: white;
+            border: 1px solid rgba(116, 185, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .product-item:hover {
+            border-color: #74b9ff;
+            box-shadow: 0 4px 12px rgba(116, 185, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .product-item.selected {
+            border-color: #00b894;
+            background: rgba(0, 184, 148, 0.05);
+        }
+
+        .product-name {
+            font-weight: 600;
+            color: #2d3436;
+            margin-bottom: 5px;
+        }
+
+        .product-details {
+            font-size: 12px;
+            color: #636e72;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .product-price {
+            font-weight: 600;
+            color: #00b894;
+        }
+
+        .product-stock {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(0, 184, 148, 0.1);
+            color: #00b894;
+        }
+
+        .product-stock.low {
+            background: rgba(255, 107, 107, 0.1);
+            color: #ff6b6b;
+        }
+
+        @media (max-width: 768px) {
+            .workflow-panel {
+                width: 100%;
+                right: -100%;
+            }
+            
+            .po-form {
+                padding: 15px;
+            }
+            
+
+        }
     </style>
 </head>
 <body>
@@ -318,9 +750,9 @@
             </div>
             
             <div class="quick-actions">
-                <button class="quick-action-btn" onclick="quickMessage('Complete User Registration')">📝 Complete User Registration</button>
-                <button class="quick-action-btn" onclick="quickMessage('Complete Supplier Registration')">🏢 Complete Supplier Registration</button>
-                <button class="quick-action-btn" onclick="quickMessage('Start Conversation')">💬 Start Conversation</button>
+                <button id="purchaseOrderBtn" class="quick-action-btn" onclick="requestPurchaseOrderAccess()" style="display: none;">📦 Create Purchase Order</button>
+                <button class="quick-action-btn" onclick="quickMessage('Complete User Registration')">📝 User Registration</button>
+                <button class="quick-action-btn" onclick="quickMessage('Complete Supplier Registration')">🏢 Supplier Registration</button>
                 <button class="quick-action-btn" onclick="quickMessage('Training Help')">📚 Training Help</button>
             </div>
             
@@ -339,8 +771,68 @@
         Connecting...
     </div>
 
+    <!-- Purchase Order Form Panel -->
+    <div id="purchaseOrderPanel" class="workflow-panel">
+        <div class="workflow-header">
+            <div class="workflow-title">📋 Purchase Order Creation</div>
+            <div class="workflow-subtitle">Fill out the form to create your purchase order</div>
+            <button class="po-close-btn" onclick="closePurchaseOrderPanel()">×</button>
+        </div>
+        
+        <div class="workflow-content">
+            <form id="purchaseOrderForm" class="po-form">
+                <div class="form-group">
+                    <label for="poId">Purchase Order ID *</label>
+                    <input type="text" id="poId" name="poId" required placeholder="Enter PO ID (e.g., PO-2025-001)">
+                </div>
+                
+                <div class="form-group">
+                    <label for="vendorId">Vendor ID *</label>
+                    <input type="text" id="vendorId" name="vendorId" required placeholder="Enter Vendor ID (e.g., SUP001)">
+                    <button type="button" class="check-availability-btn" onclick="checkProductAvailability()">
+                        🔍 Check Available Products
+                    </button>
+                </div>
+                
+                <!-- Product Availability Display -->
+                <div id="productAvailabilitySection" class="product-availability" style="display: none;">
+                    <h4>📦 Available Products</h4>
+                    <div id="productsList" class="products-list"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="product">Product *</label>
+                    <input type="text" id="product" name="product" required placeholder="Enter product name or select from available products">
+                </div>
+                
+                <div class="form-group">
+                    <label for="quantity">Quantity *</label>
+                    <input type="number" id="quantity" name="quantity" required placeholder="Enter quantity" min="1">
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">Notes (Optional)</label>
+                    <textarea id="notes" name="notes" placeholder="Additional notes or specifications..." rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="deliveryDate">Delivery Date (Optional)</label>
+                    <input type="date" id="deliveryDate" name="deliveryDate">
+                </div>
+                
+                <button type="submit" class="submit-btn">
+                    <span class="btn-text">🚀 Create Purchase Order</span>
+                    <span class="btn-loader" style="display: none;">⏳ Creating...</span>
+                </button>
+            </form>
+            
+            <div id="formResult" class="form-result" style="display: none;"></div>
+        </div>
+    </div>
+
     <script>
         let sessionId = 'simple_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        let shouldShowPurchaseOrderButton = false;
         
         const messagesContainer = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
@@ -383,6 +875,19 @@
             
             contentDiv.innerHTML = content;
             
+            // Add purchase order form trigger for bot messages
+            if (!isUser) {
+                if (shouldShowPurchaseOrderButton) {
+                    const startButton = document.createElement('button');
+                    startButton.className = 'workflow-trigger-btn';
+                    startButton.innerHTML = '� Open Purchase Order Form';
+                    startButton.onclick = () => openWorkflowPanel('purchase_order');
+                    contentDiv.appendChild(document.createElement('br'));
+                    contentDiv.appendChild(document.createElement('br'));
+                    contentDiv.appendChild(startButton);
+                }
+            }
+            
             messageDiv.appendChild(avatarDiv);
             messageDiv.appendChild(contentDiv);
             
@@ -419,6 +924,8 @@
             const message = messageInput.value.trim();
             if (!message) return;
             
+            // Don't set purchase order button flag here - wait for authorization
+            
             // Add user message
             addMessage(message, true);
             messageInput.value = '';
@@ -442,7 +949,78 @@
                 const data = await response.json();
                 
                 if (data.response) {
+                    // Check if this is employee ID authentication
+                    const empIdMatch = message.match(/\b(EMP\d+)\b/i);
+                    if (empIdMatch && (data.response.includes('Access Granted') || 
+                                     data.response.includes('User Profile') || 
+                                     data.response.includes('John Doe') ||
+                                     data.status === 'query_completed')) {
+                        const employeeId = empIdMatch[0].toUpperCase();
+                        if (AUTHORIZED_EMPLOYEE_IDS.includes(employeeId)) {
+                            currentEmployeeId = employeeId;
+                            isAuthorizedForPurchaseOrder = true;
+                            console.log('✅ Employee authenticated for purchase orders:', employeeId);
+                            console.log('✅ isAuthorizedForPurchaseOrder set to:', isAuthorizedForPurchaseOrder);
+                            
+                            // Check if there's a pending purchase order request in the conversation
+                            const chatMessages = document.querySelectorAll('.message-bubble');
+                            const lastFewMessages = Array.from(chatMessages).slice(-3);
+                            const hasPendingPurchaseOrder = lastFewMessages.some(msg => 
+                                msg.textContent.toLowerCase().includes('purchase order')
+                            );
+                            
+                            if (hasPendingPurchaseOrder) {
+                                console.log('✅ Found pending purchase order request - showing button');
+                                showPurchaseOrderButton();
+                            }
+                        }
+                    }
+                    
+                    // DEBUG: Log all response data
+                    console.log('=== RESPONSE DEBUG ===');
+                    console.log('Full response data:', data);
+                    console.log('show_purchase_button:', data.show_purchase_button);
+                    console.log('isAuthorizedForPurchaseOrder:', isAuthorizedForPurchaseOrder);
+                    console.log('task:', data.task);
+                    console.log('status:', data.status);
+                    console.log('=====================');
+                    
+                    // Check if this is a successful product availability check OR purchase order response
+                    if ((data.action === 'product_check_complete' && data.show_purchase_button) || 
+                        (data.show_purchase_button && isAuthorizedForPurchaseOrder)) {
+                        if (isAuthorizedForPurchaseOrder) {
+                            console.log('✅ SHOWING Purchase Order button - conditions met');
+                            showPurchaseOrderButton();
+                        }
+                        console.log('Purchase Order button trigger - button visibility based on authorization');
+                    } else if (data.task === 'purchase_order' && data.status === 'authenticated_proceed') {
+                        // Additional check for purchase order tasks
+                        if (isAuthorizedForPurchaseOrder) {
+                            console.log('✅ SHOWING Purchase Order button - purchase order task detected');
+                            showPurchaseOrderButton();
+                        }
+                    } else if (data.response && data.response.includes('Purchase Order Creation Started') && 
+                               data.response.includes('Ready to create a new purchase order')) {
+                        // Direct detection of purchase order response text
+                        console.log('✅ SHOWING Purchase Order button - detected by response text pattern');
+                        if (currentEmployeeId && AUTHORIZED_EMPLOYEE_IDS.includes(currentEmployeeId)) {
+                            isAuthorizedForPurchaseOrder = true;
+                            showPurchaseOrderButton();
+                        } else {
+                            console.log('❌ User not authorized for purchase orders');
+                        }
+                    } else {
+                        console.log('❌ Purchase Order button NOT shown - conditions not met');
+                        console.log('Condition 1 (product check):', (data.action === 'product_check_complete' && data.show_purchase_button));
+                        console.log('Condition 2 (purchase button flag):', (data.show_purchase_button && isAuthorizedForPurchaseOrder));
+                        console.log('Condition 3 (purchase task):', (data.task === 'purchase_order' && data.status === 'authenticated_proceed'));
+                        console.log('Condition 4 (response text):', (data.response && data.response.includes('Purchase Order Creation Started')));
+                    }
+                    
                     addMessage(data.response);
+                    
+                    // Manage button visibility after processing the response
+                    manageButtonVisibilityAfterMessage(message, data.response);
                 } else {
                     addMessage('Sorry, I encountered an error. Please try again.');
                 }
@@ -475,6 +1053,526 @@
             }
         }
         
+        // Workflow Management Functions
+        let currentWorkflow = null;
+        let workflowRunning = false;
+        let currentStepIndex = 0;
+
+        function detectWorkflowTrigger(content) {
+            const lowerContent = content.toLowerCase();
+            
+            // Check for other registration types that should hide purchase order button
+            const otherRegistrationTriggers = [
+                'user registration', 'register user', 'create user', 'add user',
+                'supplier registration', 'register supplier', 'create supplier', 'add supplier', 
+                'vendor registration', 'register vendor', 'create vendor', 'add vendor',
+                'employee registration', 'register employee', 'create employee', 'add employee',
+                'training registration', 'register training', 'schedule training', 'book training'
+            ];
+            
+            // Check for purchase order triggers
+            const purchaseOrderTriggers = [
+                'purchase order', 'po ', 'procurement', 'buying', 'order', 
+                'purchase', 'create purchase order', 'make purchase'
+            ];
+
+            // Check if user is switching to other registration types
+            const hasOtherRegistration = otherRegistrationTriggers.some(keyword => 
+                lowerContent.includes(keyword)
+            );
+            
+            // Check for purchase order content
+            const hasPurchaseOrderTrigger = purchaseOrderTriggers.some(keyword => 
+                lowerContent.includes(keyword)
+            );
+            
+            // If user mentions other registrations, return 'other' to hide purchase order button
+            if (hasOtherRegistration) {
+                return 'other_registration';
+            }
+            
+            // Only return purchase_order type for purchase order content
+            return hasPurchaseOrderTrigger ? 'purchase_order' : null;
+        }
+
+        // Purchase Order Panel Functions
+        function openWorkflowPanel(workflowType) {
+            // Only open for purchase_order type
+            if (workflowType === 'purchase_order') {
+                document.getElementById('purchaseOrderPanel').classList.add('active');
+            }
+        }
+
+        function closePurchaseOrderPanel() {
+            document.getElementById('purchaseOrderPanel').classList.remove('active');
+            // Reset form and hide results
+            document.getElementById('purchaseOrderForm').reset();
+            hideFormResult();
+        }
+
+        function loadWorkflowSteps(workflowType) {
+            const workflows = {
+                'purchase_order': {
+                    title: 'Purchase Order Creation',
+                    steps: [
+                        { title: 'Validate Authorization', description: 'Check user permissions and access rights', status: 'pending' },
+                        { title: 'Collect Order Details', description: 'Gather product, quantity, and vendor information', status: 'pending' },
+                        { title: 'Verify Vendor', description: 'Validate vendor credentials and availability', status: 'pending' },
+                        { title: 'Calculate Pricing', description: 'Compute total cost and apply discounts', status: 'pending' },
+                        { title: 'Generate PO Document', description: 'Create official purchase order document', status: 'pending' },
+                        { title: 'Send for Approval', description: 'Route to appropriate approver', status: 'pending' },
+                        { title: 'Finalize Order', description: 'Complete the purchase order process', status: 'pending' }
+                    ]
+                },
+                'supplier_registration': {
+                    title: 'Supplier Registration',
+                    steps: [
+                        { title: 'Collect Basic Info', description: 'Company name, contact details, and business type', status: 'pending' },
+                        { title: 'Verify Documents', description: 'Check business registration and tax documents', status: 'pending' },
+                        { title: 'Financial Assessment', description: 'Evaluate financial stability and creditworthiness', status: 'pending' },
+                        { title: 'Quality Certification', description: 'Review quality standards and certifications', status: 'pending' },
+                        { title: 'Create Supplier Profile', description: 'Set up supplier account in the system', status: 'pending' },
+                        { title: 'Send Welcome Package', description: 'Provide onboarding materials and next steps', status: 'pending' }
+                    ]
+                },
+                'user_registration': {
+                    title: 'User Registration',
+                    steps: [
+                        { title: 'Collect Personal Info', description: 'Name, email, phone, and basic details', status: 'pending' },
+                        { title: 'Validate Information', description: 'Check data accuracy and completeness', status: 'pending' },
+                        { title: 'Create User Account', description: 'Set up login credentials and permissions', status: 'pending' },
+                        { title: 'Assign Role & Department', description: 'Define user role and department assignment', status: 'pending' },
+                        { title: 'Send Welcome Email', description: 'Deliver account details and onboarding info', status: 'pending' }
+                    ]
+                }
+            };
+
+            const workflow = workflows[workflowType] || workflows['purchase_order'];
+            currentWorkflow = { type: workflowType, ...workflow };
+            
+            document.querySelector('.workflow-title').textContent = `🎯 ${workflow.title}`;
+            renderWorkflowSteps(workflow.steps);
+            updateProgress(0);
+        }
+
+        function renderWorkflowSteps(steps) {
+            const stepsContainer = document.getElementById('workflowSteps');
+            stepsContainer.innerHTML = '';
+
+            steps.forEach((step, index) => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = `workflow-step ${step.status}`;
+                stepDiv.innerHTML = `
+                    <div class="step-icon ${step.status}">
+                        ${step.status === 'completed' ? '✓' : step.status === 'active' ? '▶' : (index + 1)}
+                    </div>
+                    <div class="step-content">
+                        <div class="step-title">${step.title}</div>
+                        <div class="step-description">${step.description}</div>
+                        <div class="step-status ${step.status}">${step.status.charAt(0).toUpperCase() + step.status.slice(1)}</div>
+                    </div>
+                `;
+                stepsContainer.appendChild(stepDiv);
+            });
+        }
+
+        function updateProgress(percentage) {
+            document.getElementById('workflowProgress').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = `${Math.round(percentage)}% Complete`;
+        }
+
+        async function startWorkflow() {
+            if (!currentWorkflow) return;
+            
+            workflowRunning = true;
+            currentStepIndex = 0;
+            
+            document.querySelector('.workflow-btn.start').disabled = true;
+            document.querySelector('.workflow-btn.pause').disabled = false;
+            document.querySelector('.workflow-btn.stop').disabled = false;
+            
+            await executeWorkflowSteps();
+        }
+
+        async function executeWorkflowSteps() {
+            const steps = currentWorkflow.steps;
+            
+            for (let i = currentStepIndex; i < steps.length && workflowRunning; i++) {
+                currentStepIndex = i;
+                
+                // Mark current step as active
+                steps[i].status = 'active';
+                renderWorkflowSteps(steps);
+                
+                // Simulate step execution (replace with actual API calls)
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                if (!workflowRunning) break;
+                
+                // Mark step as completed
+                steps[i].status = 'completed';
+                renderWorkflowSteps(steps);
+                updateProgress(((i + 1) / steps.length) * 100);
+            }
+            
+            if (workflowRunning && currentStepIndex >= steps.length - 1) {
+                // Workflow completed
+                workflowRunning = false;
+                document.getElementById('progressText').textContent = '✅ Workflow Completed Successfully!';
+                resetWorkflowButtons();
+            }
+        }
+
+        function pauseWorkflow() {
+            workflowRunning = false;
+            document.querySelector('.workflow-btn.start').disabled = false;
+            document.querySelector('.workflow-btn.pause').disabled = true;
+            document.getElementById('progressText').textContent = '⏸️ Workflow Paused';
+        }
+
+        function stopWorkflow() {
+            workflowRunning = false;
+            resetWorkflow();
+            resetWorkflowButtons();
+            document.getElementById('progressText').textContent = '⏹️ Workflow Stopped';
+        }
+
+        function resetWorkflow() {
+            currentStepIndex = 0;
+            if (currentWorkflow && currentWorkflow.steps) {
+                currentWorkflow.steps.forEach(step => step.status = 'pending');
+                renderWorkflowSteps(currentWorkflow.steps);
+            }
+            updateProgress(0);
+        }
+
+        function resetWorkflowButtons() {
+            document.querySelector('.workflow-btn.start').disabled = false;
+            document.querySelector('.workflow-btn.pause').disabled = true;
+            document.querySelector('.workflow-btn.stop').disabled = true;
+        }
+
+        // Product Availability Functions
+        async function checkProductAvailability() {
+            const vendorId = document.getElementById('vendorId').value.trim();
+            
+            if (!vendorId) {
+                alert('Please enter a Vendor ID first');
+                return;
+            }
+            
+            const button = document.querySelector('.check-availability-btn');
+            const originalText = button.innerHTML;
+            button.innerHTML = '⏳ Checking...';
+            button.disabled = true;
+            
+            try {
+                const response = await fetch('/api/supplier-products', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        supplier_id: vendorId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayAvailableProducts(data);
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+                
+            } catch (error) {
+                console.error('Error checking product availability:', error);
+                alert('Failed to check product availability. Please try again.');
+            } finally {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+        
+        function displayAvailableProducts(data) {
+            const section = document.getElementById('productAvailabilitySection');
+            const productsList = document.getElementById('productsList');
+            
+            if (data.products.length === 0) {
+                productsList.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #636e72;">
+                        <p>🔍 No products found for supplier ${data.supplier_id}</p>
+                        <p>Please check the supplier ID or contact the supplier directly.</p>
+                    </div>
+                `;
+            } else {
+                productsList.innerHTML = data.products.map(product => `
+                    <div class="product-item" onclick="selectProduct('${product.name}', '${product.product_id}', ${product.price}, ${product.stock})">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-details">
+                            <span class="product-price">$${product.price}</span>
+                            <span class="product-stock ${product.stock < 20 ? 'low' : ''}">${product.stock} in stock</span>
+                        </div>
+                        <div style="font-size: 11px; color: #74b9ff; margin-top: 5px;">
+                            ID: ${product.product_id} | Category: ${product.category}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            section.style.display = 'block';
+        }
+        
+        function selectProduct(productName, productId, price, stock) {
+            // Update the product field
+            document.getElementById('product').value = productName;
+            
+            // Highlight selected product
+            document.querySelectorAll('.product-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            event.target.closest('.product-item').classList.add('selected');
+            
+            // Show selection feedback
+            showFormResult(`✅ Selected: ${productName} (Stock: ${stock}, Price: $${price})`, true);
+            
+            // Auto-focus on quantity field
+            document.getElementById('quantity').focus();
+        }
+
+        // Purchase Order Form Submission Handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('purchaseOrderForm');
+            if (form) {
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    // Get form data
+                    const formData = new FormData(form);
+                    const purchaseOrderData = {
+                        po_id: formData.get('poId'),
+                        vendor_id: formData.get('vendorId'), 
+                        product: formData.get('product'),
+                        quantity: parseInt(formData.get('quantity')),
+                        notes: formData.get('notes') || '',
+                        delivery_date: formData.get('deliveryDate') || ''
+                    };
+
+                    // Validate required fields
+                    if (!purchaseOrderData.po_id || !purchaseOrderData.vendor_id || 
+                        !purchaseOrderData.product || !purchaseOrderData.quantity) {
+                        showFormResult('Please fill in all required fields.', false);
+                        return;
+                    }
+
+                    setFormLoading(true);
+                    hideFormResult();
+
+                    try {
+                        // Submit to purchase order API
+                        const response = await fetch('/api/purchase-order', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(purchaseOrderData)
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok && result.success) {
+                            const successMsg = `✅ Purchase Order created successfully! Document ID: ${result.document_id}`;
+                            showFormResult(successMsg, true);
+                            form.reset();
+                            
+                            // Add success message to main chat area
+                            addMessage(`🎉 **Purchase Order Created Successfully!**\\n\\n📋 **Details:**\\n• PO ID: ${purchaseOrderData.po_id}\\n• Vendor: ${purchaseOrderData.vendor_id}\\n• Product: ${purchaseOrderData.product}\\n• Quantity: ${purchaseOrderData.quantity}\\n• Document ID: ${result.document_id}\\n\\nYour purchase order has been saved to the database.`);
+                            
+                            // Auto-close the panel after 3 seconds
+                            setTimeout(() => {
+                                closeWorkflowPanel();
+                            }, 3000);
+                        } else {
+                            showFormResult(`❌ Error: ${result.error || result.message || 'Failed to create purchase order'}`, false);
+                        }
+                    } catch (error) {
+                        console.error('Form submission error:', error);
+                        showFormResult('❌ Connection error. Please try again.', false);
+                    } finally {
+                        setFormLoading(false);
+                    }
+                });
+            }
+        });
+
+        // Form Helper Functions
+        function showFormResult(message, isSuccess = true) {
+            const resultDiv = document.getElementById('formResult');
+            resultDiv.textContent = message;
+            resultDiv.className = `form-result ${isSuccess ? 'success' : 'error'}`;
+            resultDiv.style.display = 'block';
+        }
+
+        function hideFormResult() {
+            const resultDiv = document.getElementById('formResult');
+            if (resultDiv) {
+                resultDiv.style.display = 'none';
+            }
+        }
+
+        function setFormLoading(loading) {
+            const submitBtn = document.querySelector('.submit-btn');
+            if (submitBtn) {
+                const btnText = submitBtn.querySelector('.btn-text');
+                const btnLoader = submitBtn.querySelector('.btn-loader');
+                
+                if (loading) {
+                    if (btnText) btnText.style.display = 'none';
+                    if (btnLoader) btnLoader.style.display = 'inline';
+                    submitBtn.disabled = true;
+                } else {
+                    if (btnText) btnText.style.display = 'inline';
+                    if (btnLoader) btnLoader.style.display = 'none';
+                    submitBtn.disabled = false;
+                }
+            }
+        }
+
+        // Purchase Order Authorization and Button Visibility Logic
+        let currentEmployeeId = null;
+        let isAuthorizedForPurchaseOrder = false;
+        const AUTHORIZED_EMPLOYEE_IDS = ['EMP001', 'EMP003', 'EMP004', 'EMP005'];
+        
+        // Request Purchase Order Access - validate employee ID first
+        async function requestPurchaseOrderAccess() {
+            // First, prompt for employee ID if not already provided
+            if (!currentEmployeeId || !isAuthorizedForPurchaseOrder) {
+                const employeeId = prompt('Please enter your Employee ID to access Purchase Order creation:');
+                if (!employeeId || employeeId.trim() === '') {
+                    addMessage('❌ Employee ID is required to access Purchase Order functionality.');
+                    return;
+                }
+                
+                const trimmedId = employeeId.trim().toUpperCase();
+                
+                // Check if employee ID is authorized
+                if (!AUTHORIZED_EMPLOYEE_IDS.includes(trimmedId)) {
+                    addMessage(`❌ Access Denied: Employee ID ${trimmedId} is not authorized for Purchase Order creation.\n\n✅ Authorized users:\n• EMP001 (Admin User)\n• EMP003 (Procurement Manager)\n• EMP004 (Finance Manager)\n• EMP005 (Director)`);
+                    return;
+                }
+                
+                // Store the authorized employee ID
+                currentEmployeeId = trimmedId;
+                isAuthorizedForPurchaseOrder = true;
+                
+                addMessage(`✅ Access Granted: Welcome ${trimmedId}! You are now authorized to create purchase orders.`);
+            }
+            
+            // Proceed with the purchase order request
+            quickMessage('I want to create a purchase order');
+        }
+        
+        // Show Purchase Order Button (called when user is authorized)
+        function showPurchaseOrderButton() {
+            const btn = document.getElementById('purchaseOrderBtn');
+            if (btn) {
+                btn.style.display = 'inline-block';
+                shouldShowPurchaseOrderButton = true;
+                console.log('Purchase Order button shown for authorized user:', currentEmployeeId);
+            }
+        }
+        
+        // Hide Purchase Order Button (called when user switches to other actions)
+        function hidePurchaseOrderButton() {
+            const btn = document.getElementById('purchaseOrderBtn');
+            if (btn) {
+                btn.style.display = 'none';
+                shouldShowPurchaseOrderButton = false;
+                console.log('Purchase Order button hidden due to context switch');
+            }
+            closePurchaseOrderPanel(); // Also close the panel if open
+        }
+        
+        // Enhanced detection for hiding button when user switches contexts
+        function checkAndManageButtonVisibility(message, response) {
+            const lowerMessage = message.toLowerCase();
+            const lowerResponse = (response || '').toLowerCase();
+            
+            // Detect purchase order requests and validate authorization
+            const purchaseOrderTriggers = [
+                'purchase order', 'po ', 'procurement', 'buying', 'order', 
+                'purchase', 'create purchase order', 'make purchase'
+            ];
+            
+            const hasPurchaseOrderRequest = purchaseOrderTriggers.some(trigger => 
+                lowerMessage.includes(trigger)
+            );
+            
+            // Check if response indicates purchase order workflow started
+            const purchaseOrderResponsePatterns = [
+                'create a new purchase order',
+                'purchase order creation',
+                'proceed with.*purchase order',
+                'new task started.*purchase',
+                'authorized to proceed.*purchase order'
+            ];
+            
+            const hasPurchaseOrderResponse = purchaseOrderResponsePatterns.some(pattern => {
+                const regex = new RegExp(pattern, 'i');
+                return regex.test(response || '');
+            });
+            
+            // If user requests purchase order OR server responds with purchase order workflow, show button
+            if ((hasPurchaseOrderRequest || hasPurchaseOrderResponse) && isAuthorizedForPurchaseOrder) {
+                console.log('Purchase Order detected - showing button');
+                console.log('Message:', message);
+                console.log('Response:', response);
+                showPurchaseOrderButton();
+                return;
+            }
+            
+            // Check for other registration types or non-purchase-order activities
+            const otherActivities = [
+                'user registration', 'register user', 'create user', 'add user',
+                'supplier registration', 'register supplier', 'create supplier', 'add supplier', 
+                'vendor registration', 'register vendor', 'create vendor', 'add vendor',
+                'employee registration', 'register employee', 'create employee', 'add employee',
+                'training registration', 'register training', 'schedule training', 'book training',
+                'query', 'search', 'find', 'show me', 'list', 'display', 'get',
+                'help', 'support', 'documentation', 'guide', 'tutorial'
+            ];
+            
+            const hasOtherActivity = otherActivities.some(activity => 
+                lowerMessage.includes(activity) || lowerResponse.includes(activity)
+            );
+            
+            // Hide button if user is doing other activities
+            if (hasOtherActivity && !hasPurchaseOrderRequest) {
+                hidePurchaseOrderButton();
+            }
+            
+            // Also hide if response indicates user is working on non-purchase-order collections
+            const collectionActivities = [
+                'collection:', 'database:', 'mongodb:', 'documents found', 'query result',
+                'registration saved', 'document created', 'entry added', 'record inserted'
+            ];
+            
+            const hasCollectionActivity = collectionActivities.some(activity => 
+                lowerResponse.includes(activity)
+            );
+            
+            if (hasCollectionActivity && !lowerResponse.includes('purchase') && !lowerResponse.includes('order')) {
+                hidePurchaseOrderButton();
+            }
+        }
+        
+        // Integrated button visibility management (called from sendMessage)
+        function manageButtonVisibilityAfterMessage(message, response) {
+            setTimeout(() => {
+                checkAndManageButtonVisibility(message, response);
+            }, 100);
+        }
+
         // Check status periodically
         setInterval(checkApiStatus, 30000);
     </script>

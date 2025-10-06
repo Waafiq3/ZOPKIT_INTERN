@@ -24,6 +24,16 @@ except ImportError:
     logger.warning("⚠️ API Integration layer not available - will use direct database")
     from db import insert_document, check_supplier_eligibility
 
+# Import validation system
+try:
+    from user_validation import validate_user_data
+    VALIDATION_AVAILABLE = True
+    logger.info("✅ User validation system loaded - will validate user registrations")
+except ImportError:
+    VALIDATION_AVAILABLE = False
+    logger.warning("⚠️ User validation system not available - will skip validation")
+    validate_user_data = None
+
 # Import session management
 try:
     from session_manager import SessionManager
@@ -125,6 +135,78 @@ class DynamicChatBot:
         # Handle user validation if needed (after intent is known)
         if not state.get("user_validated", False):
             return self._handle_user_validation(user_input, state, session_id)
+        
+        # Check if authenticated user is starting a new task (supplier product check patterns)
+        if state.get("user_validated", False):
+            # Check for supplier product check patterns
+            import re
+            user_input_upper = user_input.upper()
+            supplier_patterns = [
+                r'\bCHECK\s+SUP\d+\s+PRODUCTS?\b',
+                r'\bSUP\d+\s+PRODUCTS?\b',
+                r'\bSHOW\s+.*SUP\d+.*PRODUCTS?\b',
+                r'\bLIST\s+.*SUP\d+.*ITEMS?\b',
+                r'\bWHAT\s+.*SUP\d+.*HAVE\b',
+                r'\bAVAILABLE\s+.*SUP\d+\b',
+                r'\bSUP\d+\s+INVENTORY\b'
+            ]
+            
+            # Check for purchase order patterns
+            purchase_order_patterns = [
+                r'\bCREATE\s+.*PURCHASE\s+ORDER\b',
+                r'\bPURCHASE\s+ORDER\b',
+                r'\bNEW\s+.*PURCHASE\s+ORDER\b',
+                r'\bWANT\s+TO\s+CREATE\s+.*PURCHASE\s+ORDER\b',
+                r'\bI\s+WANT\s+TO\s+CREATE\s+A\s+PURCHASE\s+ORDER\b',
+                r'\bMAKE\s+.*PURCHASE\s+ORDER\b',
+                r'\bSUBMIT\s+.*PURCHASE\s+ORDER\b',
+                r'\bPLACE\s+.*PURCHASE\s+ORDER\b'
+            ]
+            
+            # Check for other new task patterns
+            other_task_patterns = [
+                r'\bCREATE\s+.*USER\b',
+                r'\bREGISTER\s+.*USER\b',
+                r'\bNEW\s+.*USER\b',
+                r'\bREGISTER\s+.*SUPPLIER\b',
+                r'\bTRAVEL\s+REQUEST\b',
+                r'\bEXPENSE\s+REIMBURSEMENT\b',
+                r'\bLEAVE\s+REQUEST\b',
+                r'\bSCHEDULE\s+.*INTERVIEW\b',
+                r'\bTRAINING\s+REGISTRATION\b'
+            ]
+            
+            is_supplier_check = any(re.search(pattern, user_input_upper) for pattern in supplier_patterns)
+            is_purchase_order = any(re.search(pattern, user_input_upper) for pattern in purchase_order_patterns)
+            is_other_task = any(re.search(pattern, user_input_upper) for pattern in other_task_patterns)
+            
+            if is_supplier_check:
+                logger.info(f"🔄 Detected new supplier product check request from authenticated user")
+                # Reset session for new task but keep authentication
+                state["intent_analyzed"] = False
+                state["current_task"] = None
+                state["collected_data"] = {}
+                state["operation_type"] = None
+                # Re-analyze intent for the new task
+                return self._analyze_user_intent(user_input, state, session_id)
+            elif is_purchase_order:
+                logger.info(f"🔄 Detected new purchase order request from authenticated user")
+                # Reset session for new task but keep authentication
+                state["intent_analyzed"] = False
+                state["current_task"] = None
+                state["collected_data"] = {}
+                state["operation_type"] = None
+                # Re-analyze intent for the new task
+                return self._analyze_user_intent(user_input, state, session_id)
+            elif is_other_task:
+                logger.info(f"🔄 Detected new task request from authenticated user")
+                # Reset session for new task but keep authentication
+                state["intent_analyzed"] = False
+                state["current_task"] = None
+                state["collected_data"] = {}
+                state["operation_type"] = None
+                # Re-analyze intent for the new task
+                return self._analyze_user_intent(user_input, state, session_id)
         
         # Route to Query Node if this is a query operation
         if state.get("operation_type") == "query" and state.get("user_validated", False):
@@ -249,6 +331,10 @@ Please provide your **Employee ID** (e.g., EMP001, EMP002, etc.)""",
         # Merge extracted data
         if extracted:
             state["collected_data"].update(extracted)
+        
+        # Handle special task: supplier_product_check
+        if task_type == "supplier_product_check":
+            return self._handle_supplier_product_check(user_input, state, session_id)
         
         # Handle field validation and collection for any task
         if task_type and (action in ["collect_data", "save_data"] or is_confirmation):
@@ -481,6 +567,26 @@ Please provide the missing information and try again.""",
                         "eligibility_result": eligibility_result
                     }
             
+            # Validate user registration data
+            if state["current_task"] == "user_registration" and VALIDATION_AVAILABLE:
+                is_valid, validation_errors = validate_user_data(state["collected_data"])
+                
+                if not is_valid:
+                    error_message = f"""❌ **User Registration Validation Failed**
+
+**Please fix the following issues:**
+{chr(10).join(f'• {error}' for error in validation_errors)}
+
+Please provide the correct information and try again."""
+                    
+                    return {
+                        "status": "error",
+                        "response": error_message,
+                        "intent": "user_registration_validation_failed",
+                        "action": "validation_failed",
+                        "validation_errors": validation_errors
+                    }
+            
             # Use API integration or direct database
             if USE_API_INTEGRATION:
                 result = api_insert_document(state["current_task"], state["collected_data"])
@@ -638,6 +744,26 @@ Rules:
             
             # Update state
             state["collected_data"] = updated_data
+            
+            # Validate user registration data immediately when updated
+            if task_type == "user_registration" and VALIDATION_AVAILABLE:
+                is_valid, validation_errors = validate_user_data(state["collected_data"])
+                
+                if not is_valid:
+                    error_message = f"""❌ **Data Validation Error**
+
+**Please fix the following issues:**
+{chr(10).join(f'• {error}' for error in validation_errors)}
+
+Please provide the correct information."""
+                    
+                    return {
+                        "status": "error",
+                        "response": error_message,
+                        "intent": "user_registration_validation_failed",
+                        "action": "validation_failed",
+                        "validation_errors": validation_errors
+                    }
             
             # Check if we have all required fields
             if not missing_required:
@@ -850,6 +976,95 @@ How else can I help you today?""",
                 "response": f"❌ **System Error**: {e}\n\nPlease try again later."
             }
 
+    def _handle_supplier_product_check(self, user_input: str, state: Dict, session_id: str) -> Dict[str, Any]:
+        """Handle supplier product availability check"""
+        try:
+            import re
+            import requests
+            
+            # Extract supplier ID from user input
+            supplier_match = re.search(r'\bSUP\d+\b', user_input.upper())
+            
+            if not supplier_match:
+                return {
+                    "status": "field_collection",
+                    "response": """🔍 **Product Availability Check**
+
+Please provide the **Supplier ID** you want to check.
+
+**Example**: SUP001, SUP002, or SUP003
+
+**Format**: SUPxxx (where xxx is numbers)
+
+Which supplier would you like to check?""",
+                    "task": "supplier_product_check",
+                    "session_id": session_id
+                }
+            
+            supplier_id = supplier_match.group(0)
+            
+            # Call the supplier products API
+            try:
+                api_response = requests.post(
+                    'http://localhost:5001/api/check-supplier-products',
+                    json={"supplier_id": supplier_id},
+                    headers={'Content-Type': 'application/json'},
+                    timeout=10
+                )
+                
+                if api_response.status_code == 200:
+                    result = api_response.json()
+                    
+                    if result.get("success"):
+                        # Clear the task since we're done
+                        state["current_task"] = None
+                        state["collected_data"] = {}
+                        
+                        return {
+                            "status": "success",
+                            "response": result["message"],
+                            "task": "purchase_order" if result.get("show_purchase_button") else None,
+                            "action": "product_check_complete",
+                            "data": {
+                                "supplier_id": supplier_id,
+                                "products_available": result.get("products_count", 0)
+                            },
+                            "session_id": session_id,
+                            "show_purchase_button": result.get("show_purchase_button", False)
+                        }
+                    else:
+                        return {
+                            "status": "error",
+                            "response": result.get("message", f"❌ Error checking products for {supplier_id}"),
+                            "task": "supplier_product_check",
+                            "session_id": session_id
+                        }
+                else:
+                    return {
+                        "status": "error",
+                        "response": f"❌ **Server Error**\n\nUnable to check products for {supplier_id}. Please try again later.",
+                        "task": "supplier_product_check",
+                        "session_id": session_id
+                    }
+                    
+            except requests.exceptions.RequestException as e:
+                logger.error(f"API call failed for supplier product check: {e}")
+                return {
+                    "status": "error",
+                    "response": f"❌ **Connection Error**\n\nUnable to connect to product service. Please try again later.",
+                    "task": "supplier_product_check",
+                    "session_id": session_id
+                }
+                
+        except Exception as e:
+            logger.error(f"Supplier product check error: {e}")
+            return {
+                "status": "error",
+                "response": f"❌ **System Error**\n\nError processing your request: {str(e)}",
+                "task": "supplier_product_check",
+                "session_id": session_id
+            }
+
     def _analyze_user_intent(self, user_input: str, state: Dict, session_id: str) -> Dict[str, Any]:
         """Analyze what the user wants to do before asking for credentials"""
         
@@ -870,9 +1085,33 @@ User: "{user_input}"
 IMPORTANT: Check if the user has provided an Employee ID (like EMP001, EMP002, etc.) in their message.
 If they have, they should be immediately authenticated if they are authorized for the requested operation.
 
+**CRITICAL DOCUMENT ID RECOGNITION**:
+If the user says something like:
+- "I ALREADY REGISTER AS USER 68de2e97dce38701b5c19a8f" 
+- "This is my document ID 68de2e97dce38701b5c19a8f"
+- "My user ID is 68de2e97dce38701b5c19a8f"
+- Any 24-character hexadecimal string following words like "register", "user", "document id", "my id"
+
+This should be detected as:
+- detected_task: "user_registration"
+- operation_type: "query" 
+- user_intent: "retrieve existing user registration details using document ID"
+- natural_query: "find user with document ID 68de2e97dce38701b5c19a8f"
+
 Available collections and their typical use cases:
 - user_registration: Register new users/employees
 - supplier_registration: Register new suppliers/vendors  
+- supplier_product_check: Check what products are available from a specific supplier
+  EXACT PATTERNS TO DETECT:
+  * "Check SUP001 products" -> supplier_product_check
+  * "Check SUP002 products" -> supplier_product_check
+  * "Check SUP003 products" -> supplier_product_check
+  * "What products does SUP001 have" -> supplier_product_check
+  * "Show me SUP002 inventory" -> supplier_product_check
+  * "List SUP003 items" -> supplier_product_check
+  * "Available products from SUP001" -> supplier_product_check
+  * "SUP001 product catalog" -> supplier_product_check
+  * "See what SUP002 offers" -> supplier_product_check
 - purchase_order: Create purchase orders
 - travel_request: Submit travel requests
 - expense_reimbursement: Request expense reimbursements
@@ -921,14 +1160,23 @@ Query examples:
 - "display my information" -> Last created collection query (show user's data)
 
 **Critical Collection Detection Rules**:
-1. If user mentions "supplier" -> supplier_registration
-2. If user mentions "role management" -> role_management  
-3. If user mentions "training" -> training_registration
-4. If user mentions "contract" -> contract_management
-5. If user mentions "purchase order" -> purchase_order
-6. If user mentions "user registration" or just "user" -> user_registration
-7. If user mentions "support ticket" or "ticket" -> customer_support_ticket
-8. Always match the EXACT collection name the user mentions in their request
+1. **SUPPLIER PRODUCT CHECK PATTERNS** (highest priority):
+   - "Check SUP001 products" -> supplier_product_check
+   - "Check SUP002 products" -> supplier_product_check  
+   - "Check SUP003 products" -> supplier_product_check
+   - "What products does SUP001 have" -> supplier_product_check
+   - "Show me SUP002 inventory" -> supplier_product_check
+   - "List SUP003 items" -> supplier_product_check
+   - "Available products from SUP001" -> supplier_product_check
+   - Any mention of "SUP" + numbers + ("products"|"items"|"inventory"|"available"|"check"|"show"|"list") -> supplier_product_check
+2. If user mentions "supplier" for registration -> supplier_registration
+3. If user mentions "role management" -> role_management  
+4. If user mentions "training" -> training_registration
+5. If user mentions "contract" -> contract_management
+6. If user mentions "purchase order" -> purchase_order
+7. If user mentions "user registration" or just "user" -> user_registration
+8. If user mentions "support ticket" or "ticket" -> customer_support_ticket
+9. Always match the EXACT collection name the user mentions in their request
 
 **Context-Aware Query Detection**:
 - If user asks "show me my details" or "what did I provide" or "display my information" WITHOUT specifying collection:
@@ -952,7 +1200,15 @@ Respond with JSON:
             response = self.model.generate_content(prompt)
             analysis = self._parse_json_response(response.text)
             
+            # Debug logging for intent detection
+            logger.info(f"🔍 Intent Analysis Debug for input: '{user_input}'")
+            logger.info(f"🤖 AI Raw Response: {response.text}")
+            logger.info(f"📋 Parsed Analysis: {analysis}")
+            
             if analysis and analysis.get("detected_task"):
+                logger.info(f"✅ Task detected: {analysis.get('detected_task')}")
+                logger.info(f"🎯 Operation type: {analysis.get('operation_type')}")
+                logger.info(f"💡 User intent: {analysis.get('user_intent')}")
                 state["intent_analyzed"] = True
                 state["detected_task"] = analysis["detected_task"]
                 state["required_roles"] = analysis.get("required_roles", ["admin"])
@@ -966,8 +1222,67 @@ Respond with JSON:
                     access_requirements = get_endpoint_access_requirements()
                     required_positions = access_requirements.get(analysis["detected_task"], ["admin"])
                     
+                    # Check if user is already authenticated and authorized
+                    if state.get("user_validated", False):
+                        user_position = state.get("user_position", "admin")
+                        if user_position in required_positions or "admin" in user_position:
+                            logger.info(f"✅ User already authenticated with sufficient privileges for {analysis['detected_task']}")
+                            # User is already validated and has access, proceed directly
+                            if analysis.get("operation_type") == "query":
+                                return self._process_query_node(user_input, state, session_id)
+                            else:
+                                # Check if this is a purchase order creation request
+                                if analysis.get("detected_task") == "purchase_order":
+                                    return {
+                                        "status": "authenticated_proceed",
+                                        "response": f"""🔄 **Purchase Order Creation Started**
+
+You are authorized to proceed with: **{analysis.get('user_intent', 'create a new purchase order')}**
+
+🛒 **Ready to create a new purchase order**
+
+Please provide the following required information:
+• **Purchase Order ID**: Unique identifier for this purchase order
+• **Vendor ID**: Supplier/vendor identifier (e.g., SUP001)
+• **Product Name**: Item or service to be purchased
+• **Quantity**: Number of units needed
+
+You can provide all details at once or one by one.""",
+                                        "intent": analysis.get("user_intent"),
+                                        "task": analysis["detected_task"],
+                                        "operation_type": analysis.get("operation_type", "create"),
+                                        "show_purchase_button": True,
+                                        "session_id": session_id
+                                    }
+                                else:
+                                    # Continue with normal data operation flow
+                                    return {
+                                        "status": "authenticated_proceed",
+                                        "response": f"""🔄 **New Task Started**
+
+You are authorized to proceed with: **{analysis.get('user_intent', 'this operation')}**
+
+Please provide the required information to continue.""",
+                                        "intent": analysis.get("user_intent"),
+                                        "task": analysis["detected_task"],
+                                        "operation_type": analysis.get("operation_type", "create"),
+                                        "session_id": session_id
+                                    }
+                        else:
+                            return {
+                                "status": "access_denied",
+                                "response": f"""❌ **Access Denied**
+
+Your position ({user_position}) is not authorized for **{analysis['detected_task'].replace('_', ' ').title()}**.
+
+**Required Positions:** {', '.join(required_positions)}
+
+Please contact your administrator if you believe this is an error.""",
+                                "session_id": session_id
+                            }
+                    
                     # Check if user provided Employee ID in their request
-                    if embedded_employee_id:
+                    elif embedded_employee_id:
                         # Validate the embedded Employee ID immediately
                         task_type = analysis["detected_task"]
                         validation_result = validate_user_position(embedded_employee_id, required_positions)
@@ -994,10 +1309,36 @@ Respond with JSON:
                             if analysis.get("operation_type") == "query":
                                 return self._process_query_node(user_input, state, session_id)
                             else:
-                                # Continue with normal data operation flow
-                                return {
-                                    "status": "authenticated_proceed",
-                                    "response": f"""✅ **Access Granted - Session Active**
+                                # Check if this is a purchase order creation request
+                                if analysis.get("detected_task") == "purchase_order":
+                                    return {
+                                        "status": "authenticated_proceed",
+                                        "response": f"""✅ **Purchase Order Creation - Access Granted**
+
+Welcome, {validation_result["user_details"].get("name", "User")} ({validation_result["user_details"].get("position", "admin")})
+🆔 Employee ID: {embedded_employee_id}
+📅 Login: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+
+🛒 **Ready to create a new purchase order**
+
+Please provide the following required information:
+• **Purchase Order ID**: Unique identifier for this purchase order
+• **Vendor ID**: Supplier/vendor identifier (e.g., SUP001)
+• **Product Name**: Item or service to be purchased
+• **Quantity**: Number of units needed
+
+You can provide all details at once or one by one.""",
+                                        "intent": analysis.get("user_intent"),
+                                        "task": analysis["detected_task"],
+                                        "operation_type": analysis.get("operation_type", "create"),
+                                        "show_purchase_button": True,
+                                        "session_id": session_id
+                                    }
+                                else:
+                                    # Continue with normal data operation flow
+                                    return {
+                                        "status": "authenticated_proceed",
+                                        "response": f"""✅ **Access Granted - Session Active**
 
 Welcome, {validation_result["user_details"].get("name", "User")} ({validation_result["user_details"].get("position", "admin")})
 🆔 Employee ID: {embedded_employee_id}
@@ -1006,7 +1347,7 @@ Welcome, {validation_result["user_details"].get("name", "User")} ({validation_re
 You are authorized to proceed with: **{analysis.get('user_intent', 'this operation')}**
 
 Please provide the required information to continue.""",
-                                    "intent": analysis.get("user_intent"),
+                                        "intent": analysis.get("user_intent"),
                                     "task": analysis["detected_task"],
                                     "operation_type": analysis.get("operation_type", "create"),
                                     "session_id": session_id
@@ -1114,6 +1455,87 @@ Please tell me what you'd like to do, and I'll guide you through the process."""
                 "session_id": session_id
             }
 
+    def _format_query_results(self, collection_name: str, results: list, count: int) -> str:
+        """Format query results in a user-friendly way based on collection type"""
+        
+        if collection_name == "supplier_products":
+            return self._format_supplier_products(results, count)
+        elif collection_name == "user_registration":
+            return self._format_user_registration(results, count)
+        elif collection_name == "supplier_registration":
+            return self._format_supplier_registration(results, count)
+        elif collection_name == "purchase_order":
+            return self._format_purchase_order(results, count)
+        else:
+            # Default formatting for other collections
+            return self._format_default_results(results, count)
+    
+    def _format_supplier_products(self, results: list, count: int) -> str:
+        """Format supplier products in a catalog-style display"""
+        response_text = f"🛒 **Product Catalog** ({count} products available)\n\n"
+        
+        for i, product in enumerate(results[:10], 1):
+            name = product.get('name', 'N/A')
+            price = product.get('price', 0)
+            stock = product.get('stock_quantity', 0)
+            category = product.get('category', 'N/A')
+            brand = product.get('brand', 'N/A')
+            description = product.get('description', 'No description available')
+            warranty = product.get('warranty_months', 0)
+            
+            # Stock status
+            min_stock = product.get('min_stock_level', 0)
+            if stock > min_stock * 2:
+                stock_status = "✅ In Stock"
+            elif stock > min_stock:
+                stock_status = "⚠️ Low Stock"
+            else:
+                stock_status = "❌ Out of Stock"
+            
+            response_text += f"**{i}. {name}**\n"
+            response_text += f"   💰 **Price:** ${price:.2f}\n"
+            response_text += f"   📦 **Stock:** {stock} units ({stock_status})\n"
+            response_text += f"   🏷️ **Category:** {category}\n"
+            response_text += f"   🏢 **Brand:** {brand}\n"
+            if warranty > 0:
+                response_text += f"   🛡️ **Warranty:** {warranty} months\n"
+            response_text += f"   📝 **Description:** {description}\n\n"
+        
+        return response_text
+    
+    def _format_user_registration(self, results: list, count: int) -> str:
+        """Format user registration results"""
+        response_text = f"👤 **User Profile** ({count} record found)\n\n"
+        
+        for i, user in enumerate(results[:5], 1):
+            first_name = user.get('first_name', 'N/A')
+            last_name = user.get('last_name', 'N/A')
+            email = user.get('email', 'N/A')
+            created_at = user.get('created_at', 'N/A')
+            position = user.get('position', 'Not specified')
+            
+            response_text += f"**{i}. {first_name} {last_name}**\n"
+            response_text += f"   📧 **Email:** {email}\n"
+            response_text += f"   💼 **Position:** {position}\n"
+            response_text += f"   📅 **Registered:** {created_at}\n\n"
+        
+        return response_text
+    
+    def _format_default_results(self, results: list, count: int) -> str:
+        """Default formatting for other collections"""
+        response_text = f"📊 **Query Results** ({count} records)\n\n"
+        
+        for i, doc in enumerate(results[:10], 1):
+            response_text += f"**{i}.** "
+            # Format document fields nicely, excluding technical fields
+            exclude_fields = ['_id', 'created_at', 'updated_at', '__v']
+            for key, value in doc.items():
+                if key not in exclude_fields:
+                    response_text += f"{key.replace('_', ' ').title()}: {value}, "
+            response_text = response_text.rstrip(", ") + "\n"
+        
+        return response_text
+
     def _query_via_api(self, collection_name: str, mongodb_query: Dict, query_config: Dict) -> Dict[str, Any]:
         """Query data using API endpoints instead of direct database access"""
         try:
@@ -1198,6 +1620,9 @@ Please tell me what you'd like to do, and I'll guide you through the process."""
             from db import get_database
             from bson import ObjectId
             
+            logger.info(f"🗄️ Database Fallback Query - Collection: {collection_name}")
+            logger.info(f"📋 Original MongoDB Query: {mongodb_query}")
+            
             db = get_database()
             collection = db[collection_name]
             operation = query_config.get("mongodb_operation", "find")
@@ -1205,14 +1630,22 @@ Please tell me what you'd like to do, and I'll guide you through the process."""
             # Handle ObjectId conversion if needed
             if "_id" in mongodb_query:
                 id_value = mongodb_query["_id"]
+                logger.info(f"🔑 Processing _id field: {id_value} (type: {type(id_value)})")
                 if isinstance(id_value, str) and len(id_value) == 24:
                     try:
+                        original_id = id_value
                         mongodb_query["_id"] = ObjectId(id_value)
-                    except Exception:
+                        logger.info(f"✅ ObjectId conversion successful: {original_id} -> {mongodb_query['_id']}")
+                    except Exception as e:
+                        logger.error(f"❌ ObjectId conversion failed: {e}")
                         pass
+            
+            logger.info(f"🎯 Final MongoDB Query: {mongodb_query}")
+            logger.info(f"⚙️ Operation: {operation}")
             
             if operation == "count_documents":
                 result = collection.count_documents(mongodb_query)
+                logger.info(f"📊 Count Query Result: {result} documents found")
                 return {"success": True, "count": result, "data": []}
             elif operation == "find":
                 try:
@@ -1220,7 +1653,14 @@ Please tell me what you'd like to do, and I'll guide you through the process."""
                 except (ValueError, TypeError):
                     limit = 50
                 
-                results = list(collection.find(mongodb_query).limit(limit))
+                logger.info(f"🔍 Executing find query with limit {limit}")
+                cursor = collection.find(mongodb_query).limit(limit)
+                results = list(cursor)
+                logger.info(f"📋 Find Query Result: {len(results)} documents found")
+                
+                if results:
+                    logger.info(f"📄 Sample result: {results[0]}")
+                
                 return {"success": True, "data": results, "count": len(results)}
             else:
                 return {"success": False, "error": "Unsupported operation"}
@@ -1233,7 +1673,34 @@ Please tell me what you'd like to do, and I'll guide you through the process."""
         
         try:
             # Extract query parameters from state
-            collection_name = state.get("detected_task")
+            detected_task = state.get("detected_task")
+            
+            # Map task names to actual collection names
+            task_to_collection_mapping = {
+                "supplier_product_check": "supplier_products",
+                "user_registration": "user_registration",
+                "supplier_registration": "supplier_registration",
+                "purchase_order": "purchase_order",
+                "travel_request": "travel_request",
+                "expense_reimbursement": "expense_reimbursement",
+                "employee_leave_request": "employee_leave_request",
+                "interview_scheduling": "interview_scheduling",
+                "training_registration": "training_registration",
+                "payroll_management": "payroll_management",
+                "performance_review": "performance_review",
+                "inventory_management": "inventory_management",
+                "customer_support_ticket": "customer_support_ticket",
+                "role_management": "role_management",
+                "access_control": "access_control",
+                "contract_management": "contract_management",
+                "invoice_management": "invoice_management",
+                "attendance_tracking": "attendance_tracking",
+                "shift_scheduling": "shift_scheduling",
+                "meeting_scheduler": "meeting_scheduler",
+                "project_assignment": "project_assignment"
+            }
+            
+            collection_name = task_to_collection_mapping.get(detected_task, detected_task)
             natural_query = state.get("natural_query", user_input)
             query_type = state.get("query_type", "find")
             
@@ -1245,6 +1712,20 @@ Query Type: {query_type}
 Collection: {collection_name}
 
 Available fields for {collection_name}: {list(COLLECTION_SCHEMAS.get(collection_name, {}).keys())}
+
+**CRITICAL INSTRUCTION**: 
+The user is authenticated as an employee, but this does NOT mean you should add employee_id to the query.
+ONLY query by the fields that the user explicitly mentions in their natural query.
+DO NOT automatically add employee_id, user_id, or any authentication fields unless the user specifically asks for them.
+
+**CRITICAL DOCUMENT ID DETECTION**:
+Look for these patterns in the natural query:
+- "document id 68e116d1b88401b56ae6c4ca" -> Extract: 68e116d1b88401b56ae6c4ca
+- "my document id is 68e116d1b88401b56ae6c4ca" -> Extract: 68e116d1b88401b56ae6c4ca  
+- "id 68e116d1b88401b56ae6c4ca" -> Extract: 68e116d1b88401b56ae6c4ca
+- Any 24-character hexadecimal string -> Use as _id
+
+If you find a 24-character hex string (like 68e116d1b88401b56ae6c4ca), create query: {{"_id": "68e116d1b88401b56ae6c4ca"}}
 
 IMPORTANT: If the query contains a MongoDB ObjectId (like _id 68de3a043af7466cd71bfff9), use it to find the specific document.
 
@@ -1269,12 +1750,19 @@ Examples:
 - "_id 68de3a043af7466cd71bfff9 my details" -> {{"mongodb_query": {{"_id": "68de3a043af7466cd71bfff9"}}, "mongodb_operation": "find", "limit": 1}}
 - "this is my document id 68e116d1b88401b56ae6c4ca.i want my details" -> {{"mongodb_query": {{"_id": "68e116d1b88401b56ae6c4ca"}}, "mongodb_operation": "find", "limit": 1}}
 - "document ID 68e116d1b88401b56ae6c4ca details" -> {{"mongodb_query": {{"_id": "68e116d1b88401b56ae6c4ca"}}, "mongodb_operation": "find", "limit": 1}}
+- "68de2e97dce38701b5c19a8f this is my document id" -> {{"mongodb_query": {{"_id": "68de2e97dce38701b5c19a8f"}}, "mongodb_operation": "find", "limit": 1}}
+
+**WRONG EXAMPLES** (DO NOT DO THIS):
+- "68de2e97dce38701b5c19a8f this is my document id" -> {{"mongodb_query": {{"_id": "68de2e97dce38701b5c19a8f", "employee_id": "EMP001"}}, "mongodb_operation": "find", "limit": 1}} ❌ WRONG!
+- Document ID query should NEVER include employee_id or any other field ❌
 
 **CRITICAL RULES**:
 1. For ObjectId queries (_id field), use simple string format like "_id": "68de3a043af7466cd71bfff9", NOT $oid format
-2. When user provides a 24-character hex string (document ID), ALWAYS query by _id field
+2. When user provides a 24-character hex string (document ID), ALWAYS query by _id field ONLY
 3. Set limit to 1 for document ID queries to ensure single result
 4. Look for patterns: "document id", "doc id", "id", followed by 24-character hex string
+5. **NEVER combine _id with other fields** - if user provides document ID, query should be: {{"_id": "document_id"}} and NOTHING ELSE
+6. **DO NOT add employee_id, user_id, or any other fields** when querying by document _id
 
 Return ONLY valid JSON."""
 
@@ -1311,14 +1799,7 @@ Return ONLY valid JSON."""
                         else:
                             response_text = "📭 **No Results Found**\n\nNo records match your query criteria."
                     else:
-                        response_text = f"📊 **Query Results** ({count} records)\n\n"
-                        for i, doc in enumerate(results[:10], 1):  # Show first 10 results
-                            response_text += f"**{i}.** "
-                            # Format document fields nicely
-                            for key, value in doc.items():
-                                if key != "_id":
-                                    response_text += f"{key}: {value}, "
-                            response_text = response_text.rstrip(", ") + "\n"
+                        response_text = self._format_query_results(collection_name, results, count)
                         
                         if len(results) > 10:
                             response_text += f"\n*... and {len(results) - 10} more records*"

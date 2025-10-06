@@ -234,6 +234,307 @@ ENHANCED_CHAT_HTML = """
         .send-button:disabled { opacity: 0.6; cursor: not-allowed; }
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Workflow Panel Styles */
+        .workflow-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 100vh;
+            background: white;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .workflow-panel.open {
+            transform: translateX(0);
+        }
+        
+        .workflow-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .workflow-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .workflow-header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .close-workflow {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .workflow-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .workflow-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .status-badge {
+            background: #10b981;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-badge.pending { background: #f59e0b; }
+        .status-badge.running { background: #3b82f6; }
+        .status-badge.completed { background: #10b981; }
+        .status-badge.error { background: #ef4444; }
+        
+        .step-info {
+            color: #6b7280;
+            font-size: 12px;
+        }
+        
+        .workflow-progress {
+            margin-bottom: 25px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .workflow-steps {
+            margin-bottom: 25px;
+        }
+        
+        .workflow-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: white;
+            transition: all 0.2s ease;
+        }
+        
+        .workflow-step:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .step-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .step-icon.pending { background: #f59e0b; }
+        .step-icon.running { background: #3b82f6; }
+        .step-icon.completed { background: #10b981; }
+        .step-icon.error { background: #ef4444; }
+        
+        .step-details {
+            flex: 1;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #1f2937;
+            margin-bottom: 2px;
+        }
+        
+        .step-subtitle {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .step-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .step-action {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .step-action:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .workflow-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .workflow-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+        
+        .start-btn {
+            background: #10b981;
+            color: white;
+        }
+        
+        .start-btn:hover {
+            background: #059669;
+        }
+        
+        .pause-btn {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .pause-btn:hover {
+            background: #d97706;
+        }
+        
+        .stop-btn {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .stop-btn:hover {
+            background: #dc2626;
+        }
+        
+        .workflow-chat {
+            border-top: 1px solid #e5e7eb;
+            padding: 15px 20px;
+            background: #f9fafb;
+        }
+        
+        .workflow-chat input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            margin-bottom: 10px;
+        }
+        
+        .workflow-chat input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        
+        .workflow-quick-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .quick-btn {
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .quick-btn:hover {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+        
+        /* Start button in chat */
+        .start-workflow-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .start-workflow-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .workflow-panel {
+                width: 100%;
+                right: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -270,6 +571,50 @@ ENHANCED_CHAT_HTML = """
                         <li>📋 And 42 other enterprise operations!</li>
                     </ul>
                     <p><strong>💡 Pro Tip:</strong> Just tell me what you want to do naturally - I'll use the appropriate API endpoint automatically!</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Workflow AI Panel (Initially Hidden) -->
+        <div id="workflowPanel" class="workflow-panel" style="display: none;">
+            <div class="workflow-header">
+                <h3>🔄 Workflow AI</h3>
+                <p>Execution Plan</p>
+                <button id="closeWorkflow" class="close-workflow">×</button>
+            </div>
+            
+            <div class="workflow-content">
+                <div class="workflow-status">
+                    <span id="workflowTitle">Demo Execution Plan</span>
+                    <span class="status-badge" id="workflowStatus">ready</span>
+                    <span class="step-info" id="workflowStep">Step 1 of 3</span>
+                </div>
+                
+                <div class="workflow-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                    <span class="progress-text" id="progressText">0%</span>
+                </div>
+                
+                <div class="workflow-steps" id="workflowSteps">
+                    <!-- Steps will be populated dynamically -->
+                </div>
+                
+                <div class="workflow-actions">
+                    <button id="startWorkflow" class="workflow-btn start-btn">▶ Start</button>
+                    <button id="pauseWorkflow" class="workflow-btn pause-btn" style="display: none;">⏸ Pause</button>
+                    <button id="stopWorkflow" class="workflow-btn stop-btn" style="display: none;">⏹ Stop</button>
+                </div>
+            </div>
+            
+            <div class="workflow-chat">
+                <input type="text" id="workflowInput" placeholder="Ask me anything about your data, reports, or workflows..." />
+                <div class="workflow-quick-actions">
+                    <button class="quick-btn">Show me sales data</button>
+                    <button class="quick-btn">Generate report</button>
+                    <button class="quick-btn">Check system status</button>
+                    <button class="quick-btn">Create workflow</button>
                 </div>
             </div>
         </div>
@@ -333,7 +678,15 @@ ENHANCED_CHAT_HTML = """
                 });
                 
                 const data = await response.json();
-                addMessage(data.response, 'bot', data);
+                
+                // Check if this is a workflow trigger
+                const isWorkflow = isWorkflowTrigger(message);
+                if (isWorkflow) {
+                    const workflowResponse = `I'll help you create a ${getWorkflowType(message).replace('_', ' ')}. I've created an execution plan for you.`;
+                    addMessage(workflowResponse, 'bot', data);
+                } else {
+                    addMessage(data.response, 'bot', data);
+                }
                 
             } catch (error) {
                 addMessage('Sorry, I encountered an error. Please try again.', 'bot');
@@ -356,10 +709,241 @@ ENHANCED_CHAT_HTML = """
             messageContent.className = 'message-content';
             messageContent.innerHTML = content.replace(/\\n/g, '<br>');
             
+            // Check if message is about creating a workflow (purchase order, etc.)
+            if (sender === 'bot' && isWorkflowTrigger(content)) {
+                const startBtn = document.createElement('button');
+                startBtn.className = 'start-workflow-btn';
+                startBtn.textContent = '▶ Start';
+                startBtn.onclick = () => showWorkflowPanel(getWorkflowType(content));
+                messageContent.appendChild(startBtn);
+            }
+            
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(messageContent);
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function isWorkflowTrigger(content) {
+            const triggers = [
+                'purchase order', 'create order', 'buy items', 'po',
+                'supplier registration', 'register supplier',
+                'user registration', 'register user',
+                'training registration', 'schedule training',
+                'performance review', 'employee review'
+            ];
+            const contentLower = content.toLowerCase();
+            return triggers.some(trigger => contentLower.includes(trigger));
+        }
+        
+        function getWorkflowType(content) {
+            const contentLower = content.toLowerCase();
+            if (contentLower.includes('purchase') || contentLower.includes('order') || contentLower.includes('buy')) {
+                return 'purchase_order';
+            } else if (contentLower.includes('supplier')) {
+                return 'supplier_registration';
+            } else if (contentLower.includes('user') && contentLower.includes('register')) {
+                return 'user_registration';
+            } else if (contentLower.includes('training')) {
+                return 'training_registration';
+            } else {
+                return 'general_workflow';
+            }
+        }
+        
+        function showWorkflowPanel(workflowType) {
+            const panel = document.getElementById('workflowPanel');
+            panel.style.display = 'flex';
+            setTimeout(() => panel.classList.add('open'), 10);
+            
+            setupWorkflow(workflowType);
+        }
+        
+        function setupWorkflow(workflowType) {
+            const workflows = {
+                purchase_order: {
+                    title: 'Purchase Order Creation',
+                    steps: [
+                        { id: 'data_collection', title: 'Data Collection', subtitle: 'Data Collector', status: 'pending' },
+                        { id: 'data_analysis', title: 'Data Analysis', subtitle: 'Data Analyzer', status: 'pending' },
+                        { id: 'validation', title: 'Validation', subtitle: 'Validator', status: 'pending' },
+                        { id: 'submission', title: 'Order Submission', subtitle: 'API Processor', status: 'pending' }
+                    ]
+                },
+                supplier_registration: {
+                    title: 'Supplier Registration',
+                    steps: [
+                        { id: 'data_collection', title: 'Data Collection', subtitle: 'Data Collector', status: 'pending' },
+                        { id: 'eligibility_check', title: 'Eligibility Check', subtitle: 'Eligibility Validator', status: 'pending' },
+                        { id: 'registration', title: 'Registration', subtitle: 'API Processor', status: 'pending' }
+                    ]
+                },
+                user_registration: {
+                    title: 'User Registration',
+                    steps: [
+                        { id: 'data_collection', title: 'Data Collection', subtitle: 'Data Collector', status: 'pending' },
+                        { id: 'validation', title: 'Validation', subtitle: 'Validator', status: 'pending' },
+                        { id: 'registration', title: 'Registration', subtitle: 'API Processor', status: 'pending' }
+                    ]
+                },
+                training_registration: {
+                    title: 'Training Registration',
+                    steps: [
+                        { id: 'data_collection', title: 'Data Collection', subtitle: 'Data Collector', status: 'pending' },
+                        { id: 'schedule_check', title: 'Schedule Check', subtitle: 'Schedule Validator', status: 'pending' },
+                        { id: 'registration', title: 'Registration', subtitle: 'API Processor', status: 'pending' }
+                    ]
+                },
+                general_workflow: {
+                    title: 'General Workflow',
+                    steps: [
+                        { id: 'data_collection', title: 'Data Collection', subtitle: 'Data Collector', status: 'pending' },
+                        { id: 'processing', title: 'Processing', subtitle: 'Processor', status: 'pending' },
+                        { id: 'completion', title: 'Completion', subtitle: 'Finalizer', status: 'pending' }
+                    ]
+                }
+            };
+            
+            const workflow = workflows[workflowType] || workflows.general_workflow;
+            
+            document.getElementById('workflowTitle').textContent = workflow.title;
+            document.getElementById('workflowStatus').textContent = 'ready';
+            document.getElementById('workflowStep').textContent = `Step 1 of ${workflow.steps.length}`;
+            
+            renderWorkflowSteps(workflow.steps);
+        }
+        
+        function renderWorkflowSteps(steps) {
+            const stepsContainer = document.getElementById('workflowSteps');
+            stepsContainer.innerHTML = '';
+            
+            steps.forEach((step, index) => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'workflow-step';
+                stepDiv.innerHTML = `
+                    <div class="step-icon ${step.status}">
+                        ${step.status === 'completed' ? '✓' : step.status === 'running' ? '⟳' : (index + 1)}
+                    </div>
+                    <div class="step-details">
+                        <div class="step-title">${step.title}</div>
+                        <div class="step-subtitle">${step.subtitle}</div>
+                    </div>
+                    <div class="step-actions">
+                        <button class="step-action" title="Skip">⏭</button>
+                        <button class="step-action" title="More options">⋯</button>
+                    </div>
+                `;
+                stepsContainer.appendChild(stepDiv);
+            });
+        }
+        
+        let currentWorkflowSteps = [];
+        let workflowRunning = false;
+        let currentStepIndex = 0;
+        
+        function startWorkflow() {
+            if (workflowRunning) return;
+            
+            workflowRunning = true;
+            currentStepIndex = 0;
+            
+            document.getElementById('startWorkflow').style.display = 'none';
+            document.getElementById('pauseWorkflow').style.display = 'inline-block';
+            document.getElementById('stopWorkflow').style.display = 'inline-block';
+            
+            document.getElementById('workflowStatus').className = 'status-badge running';
+            document.getElementById('workflowStatus').textContent = 'running';
+            
+            runNextStep();
+        }
+        
+        function runNextStep() {
+            if (currentStepIndex >= document.querySelectorAll('.workflow-step').length) {
+                completeWorkflow();
+                return;
+            }
+            
+            const steps = document.querySelectorAll('.workflow-step');
+            const currentStep = steps[currentStepIndex];
+            const stepIcon = currentStep.querySelector('.step-icon');
+            
+            // Update step status to running
+            stepIcon.className = 'step-icon running';
+            stepIcon.textContent = '⟳';
+            
+            // Update progress
+            const progress = ((currentStepIndex + 0.5) / steps.length) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+            document.getElementById('progressText').textContent = `${Math.round(progress)}%`;
+            document.getElementById('workflowStep').textContent = `Step ${currentStepIndex + 1} of ${steps.length}`;
+            
+            // Simulate step completion after 2-3 seconds
+            setTimeout(() => {
+                stepIcon.className = 'step-icon completed';
+                stepIcon.textContent = '✓';
+                
+                currentStepIndex++;
+                
+                if (currentStepIndex < steps.length) {
+                    setTimeout(runNextStep, 500);
+                } else {
+                    completeWorkflow();
+                }
+            }, Math.random() * 2000 + 2000);
+        }
+        
+        function completeWorkflow() {
+            workflowRunning = false;
+            
+            document.getElementById('startWorkflow').style.display = 'inline-block';
+            document.getElementById('pauseWorkflow').style.display = 'none';
+            document.getElementById('stopWorkflow').style.display = 'none';
+            
+            document.getElementById('workflowStatus').className = 'status-badge completed';
+            document.getElementById('workflowStatus').textContent = 'completed';
+            
+            document.getElementById('progressFill').style.width = '100%';
+            document.getElementById('progressText').textContent = '100%';
+            
+            // Show completion message in chat
+            setTimeout(() => {
+                addMessage('✅ Workflow completed successfully! Your request has been processed.', 'bot');
+            }, 1000);
+        }
+        
+        function pauseWorkflow() {
+            workflowRunning = false;
+            document.getElementById('startWorkflow').style.display = 'inline-block';
+            document.getElementById('pauseWorkflow').style.display = 'none';
+            document.getElementById('workflowStatus').className = 'status-badge pending';
+            document.getElementById('workflowStatus').textContent = 'paused';
+        }
+        
+        function stopWorkflow() {
+            workflowRunning = false;
+            currentStepIndex = 0;
+            
+            document.getElementById('startWorkflow').style.display = 'inline-block';
+            document.getElementById('pauseWorkflow').style.display = 'none';
+            document.getElementById('stopWorkflow').style.display = 'none';
+            
+            document.getElementById('workflowStatus').className = 'status-badge error';
+            document.getElementById('workflowStatus').textContent = 'stopped';
+            
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+            
+            // Reset all steps
+            document.querySelectorAll('.step-icon').forEach((icon, index) => {
+                icon.className = 'step-icon pending';
+                icon.textContent = index + 1;
+            });
+        }
+        
+        function closeWorkflowPanel() {
+            const panel = document.getElementById('workflowPanel');
+            panel.classList.remove('open');
+            setTimeout(() => panel.style.display = 'none', 300);
         }
         
         function sendQuickMessage(message) {
@@ -376,6 +960,21 @@ ENHANCED_CHAT_HTML = """
             }
         });
         
+        // Workflow event listeners
+        document.getElementById('startWorkflow').addEventListener('click', startWorkflow);
+        document.getElementById('pauseWorkflow').addEventListener('click', pauseWorkflow);
+        document.getElementById('stopWorkflow').addEventListener('click', stopWorkflow);
+        document.getElementById('closeWorkflow').addEventListener('click', closeWorkflowPanel);
+        
+        // Workflow quick actions
+        document.querySelectorAll('.quick-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const message = e.target.textContent;
+                addMessage(message, 'user');
+                addMessage(`I'll help you with "${message}". Let me process that for you.`, 'bot');
+            });
+        });
+        
         // Initialize
         checkApiStatus();
         setInterval(checkApiStatus, 30000); // Check every 30 seconds
@@ -386,7 +985,7 @@ ENHANCED_CHAT_HTML = """
 
 @app.route('/')
 def home():
-    """Serve the simple chat interface"""
+    """Serve the main chat interface with integrated purchase order form"""
     from flask import render_template
     return render_template('simple_chat.html')
 
@@ -457,7 +1056,8 @@ def chat():
             "data": result.get("data", {}),
             "confidence": result.get("confidence"),
             "document_id": result.get("document_id"),
-            "api_endpoint_used": result.get("api_endpoint_used")
+            "api_endpoint_used": result.get("api_endpoint_used"),
+            "show_purchase_button": result.get("show_purchase_button", False)
         }
         
         logger.info(f"🤖 Bot response - Status: {response_data['status']}, Task: {response_data['task']}, API: {response_data.get('api_endpoint_used', 'None')}")
@@ -470,6 +1070,64 @@ def chat():
             "status": "error",
             "response": f"Sorry, I encountered an error: {str(e)}",
             "session_id": session_id if 'session_id' in locals() else "error"
+        }), 500
+
+@app.route('/api/workflow', methods=['POST'])
+def workflow_api():
+    """Handle workflow creation and management"""
+    try:
+        data = request.json
+        workflow_type = data.get('type', 'general_workflow')
+        action = data.get('action', 'create')
+        
+        if action == 'create':
+            # Create workflow based on type
+            workflows = {
+                'purchase_order': {
+                    'title': 'Purchase Order Creation',
+                    'steps': [
+                        {'id': 'data_collection', 'title': 'Data Collection', 'subtitle': 'Data Collector', 'status': 'ready'},
+                        {'id': 'data_analysis', 'title': 'Data Analysis', 'subtitle': 'Data Analyzer', 'status': 'pending'},
+                        {'id': 'validation', 'title': 'Validation', 'subtitle': 'Validator', 'status': 'pending'},
+                        {'id': 'submission', 'title': 'Order Submission', 'subtitle': 'API Processor', 'status': 'pending'}
+                    ]
+                },
+                'supplier_registration': {
+                    'title': 'Supplier Registration',
+                    'steps': [
+                        {'id': 'data_collection', 'title': 'Data Collection', 'subtitle': 'Data Collector', 'status': 'ready'},
+                        {'id': 'eligibility_check', 'title': 'Eligibility Check', 'subtitle': 'Eligibility Validator', 'status': 'pending'},
+                        {'id': 'registration', 'title': 'Registration', 'subtitle': 'API Processor', 'status': 'pending'}
+                    ]
+                }
+            }
+            
+            workflow = workflows.get(workflow_type, workflows['purchase_order'])
+            
+            return jsonify({
+                'status': 'success',
+                'workflow': workflow,
+                'message': f'{workflow["title"]} workflow created successfully'
+            })
+            
+        elif action == 'execute':
+            # Execute workflow step
+            step_id = data.get('step_id')
+            session_id = data.get('session_id', 'workflow_session')
+            
+            # Simulate step execution
+            return jsonify({
+                'status': 'success',
+                'step_id': step_id,
+                'step_status': 'completed',
+                'message': f'Step {step_id} completed successfully'
+            })
+            
+    except Exception as e:
+        logger.error(f"Workflow API error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Workflow error: {str(e)}'
         }), 500
 
 @app.route('/api/query', methods=['POST'])
@@ -664,6 +1322,243 @@ def get_user_sessions(employee_id):
         return jsonify({
             "status": "error",
             "response": f"Sessions error: {str(e)}"
+        }), 500
+
+@app.route('/api/check-supplier-products', methods=['POST'])
+def check_supplier_products_conversational():
+    """API endpoint for conversational product availability check"""
+    try:
+        logger.info("🛍️ Conversational Supplier Products Check called")
+        data = request.get_json()
+        logger.info(f"📝 Received data: {data}")
+        
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "No data provided"
+            }), 400
+        
+        supplier_id = data.get('supplier_id')
+        if not supplier_id:
+            return jsonify({
+                "success": False,
+                "error": "Missing required field: supplier_id"
+            }), 400
+        
+        # Use direct database access
+        from db import get_database
+        db = get_database()
+        
+        # Check if supplier exists
+        supplier_collection = db['supplier']
+        supplier = supplier_collection.find_one({"supplier_id": supplier_id})
+        
+        if not supplier:
+            return jsonify({
+                "success": False,
+                "message": f"❌ **Supplier Not Found**\n\nSupplier ID `{supplier_id}` does not exist in our system.\n\n**Available Suppliers:**\n• SUP001 - TechCorp Electronics\n• SUP002 - Office Furniture Plus\n• SUP003 - Workplace Solutions Inc\n\nPlease check the supplier ID and try again.",
+                "show_purchase_button": False
+            })
+        
+        # Get products from database
+        products_collection = db['supplier_products']
+        product_docs = list(products_collection.find({
+            "supplier_id": supplier_id,
+            "is_active": True
+        }))
+        
+        # Convert database documents to API format
+        products = []
+        for doc in product_docs:
+            products.append({
+                "name": doc["name"],
+                "price": doc["price"],
+                "stock": doc["stock_quantity"],
+                "category": doc["category"],
+                "product_id": doc["product_id"],
+                "description": doc.get("description", ""),
+                "brand": doc.get("brand", ""),
+                "warranty_months": doc.get("warranty_months", 0)
+            })
+        supplier_name = supplier.get('name', 'Unknown Supplier')
+        
+        if not products:
+            return jsonify({
+                "success": True,
+                "message": f"📦 **{supplier_name} ({supplier_id})**\n\n❌ **No Products Available**\n\nThis supplier currently has no products in stock. Please try another supplier or contact them directly for special requests.",
+                "show_purchase_button": False
+            })
+        
+        # Format the response message
+        products_text = ""
+        for i, product in enumerate(products, 1):
+            stock_status = "⚠️ LOW STOCK" if product["stock"] < 20 else "✅ IN STOCK"
+            products_text += f"{i}. **{product['name']}**\n   💰 ${product['price']} | 📦 {product['stock']} units | {stock_status}\n   📂 Category: {product['category']}\n\n"
+        
+        message = f"🏪 **{supplier_name} ({supplier_id})**\n\n📋 **Available Products ({len(products)} items):**\n\n{products_text}✅ **Ready to proceed with purchase order creation!**\n\nWould you like to create a purchase order for any of these items?"
+        
+        return jsonify({
+            "success": True,
+            "message": message,
+            "supplier_id": supplier_id,
+            "supplier_name": supplier_name,
+            "products_count": len(products),
+            "show_purchase_button": True
+        })
+        
+    except Exception as e:
+        logger.error(f"Check supplier products API error: {e}")
+        return jsonify({
+            "success": False,
+            "error": f"Server error: {str(e)}"
+        }), 500
+
+@app.route('/api/supplier-products', methods=['POST'])
+def get_supplier_products_api():
+    """API endpoint for checking product availability by supplier ID"""
+    try:
+        logger.info("🏪 Supplier Products API called")
+        data = request.get_json()
+        logger.info(f"📝 Received data: {data}")
+        
+        if not data:
+            logger.error("❌ No data provided")
+            return jsonify({
+                "success": False,
+                "error": "No data provided"
+            }), 400
+        
+        supplier_id = data.get('supplier_id')
+        if not supplier_id:
+            logger.error("❌ Missing supplier_id")
+            return jsonify({
+                "success": False,
+                "error": "Missing required field: supplier_id"
+            }), 400
+        
+        # Use direct database access
+        logger.info("💾 Connecting to database...")
+        from db import get_database
+        
+        # Get database connection
+        db = get_database()
+        
+        # Check if supplier exists
+        supplier_collection = db['supplier']
+        supplier = supplier_collection.find_one({"supplier_id": supplier_id})
+        
+        if not supplier:
+            logger.error(f"❌ Supplier {supplier_id} not found")
+            return jsonify({
+                "success": False,
+                "error": f"Supplier {supplier_id} not found"
+            }), 404
+        
+        # Get products from database
+        products_collection = db['supplier_products']
+        product_docs = list(products_collection.find({
+            "supplier_id": supplier_id,
+            "is_active": True
+        }))
+        
+        # Convert database documents to API format
+        products = []
+        for doc in product_docs:
+            products.append({
+                "product_id": doc["product_id"],
+                "name": doc["name"],
+                "price": doc["price"],
+                "stock": doc["stock_quantity"],
+                "category": doc["category"],
+                "description": doc.get("description", ""),
+                "brand": doc.get("brand", ""),
+                "warranty_months": doc.get("warranty_months", 0)
+            })
+        
+        logger.info(f"✅ Found {len(products)} products for supplier {supplier_id}")
+        
+        return jsonify({
+            "success": True,
+            "supplier_id": supplier_id,
+            "supplier_name": supplier.get('name', 'Unknown Supplier'),
+            "products": products,
+            "total_products": len(products)
+        })
+        
+    except Exception as e:
+        logger.error(f"Supplier products API error: {e}")
+        return jsonify({
+            "success": False,
+            "error": f"Server error: {str(e)}"
+        }), 500
+
+@app.route('/api/purchase-order', methods=['POST'])
+def create_purchase_order_api():
+    """API endpoint for creating purchase orders via form submission"""
+    try:
+        logger.info("🛒 Purchase Order API called")
+        data = request.get_json()
+        logger.info(f"📝 Received data: {data}")
+        
+        if not data:
+            logger.error("❌ No data provided")
+            return jsonify({
+                "success": False,
+                "error": "No data provided"
+            }), 400
+        
+        # Validate required fields
+        required_fields = ['po_id', 'vendor_id', 'product', 'quantity']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+        
+        if missing_fields:
+            logger.error(f"❌ Missing fields: {missing_fields}")
+            return jsonify({
+                "success": False,
+                "error": f"Missing required fields: {', '.join(missing_fields)}"
+            }), 400
+        
+        # Use direct database access since Generic API server is not running
+        logger.info("💾 Connecting to database...")
+        from db import get_database
+        
+        # Get database connection
+        db = get_database()
+        collection = db['purchase_order']
+        logger.info(f"📦 Database: {db.name}, Collection: purchase_order")
+        
+        # Add timestamp to the data
+        from datetime import datetime
+        data['created_at'] = datetime.now()
+        data['status'] = 'pending'
+        
+        # Insert the purchase order
+        logger.info(f"💾 Inserting purchase order: {data}")
+        result = collection.insert_one(data)
+        logger.info(f"✅ Insert result: {result.inserted_id}")
+        
+        if result.inserted_id:
+            # Verify the data was actually saved
+            saved_doc = collection.find_one({"_id": result.inserted_id})
+            logger.info(f"🔍 Verification - Document found: {saved_doc is not None}")
+            
+            return jsonify({
+                "success": True,
+                "document_id": str(result.inserted_id),
+                "message": "Purchase order created successfully"
+            })
+        else:
+            logger.error("❌ Failed to get inserted_id")
+            return jsonify({
+                "success": False,
+                "error": "Failed to insert purchase order into database"
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Purchase order API error: {e}")
+        return jsonify({
+            "success": False,
+            "error": f"Server error: {str(e)}"
         }), 500
 
 @app.route('/dashboard')

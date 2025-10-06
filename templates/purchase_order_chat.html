@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZOPKIT ChatBot - Purchase Order Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+        
+        .container {
+            width: 95%;
+            max-width: 900px;
+            height: 95vh;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 20px 20px 0 0;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .chat-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #fafbfc;
+        }
+        
+        .messages {
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 10px;
+        }
+        
+        .message {
+            display: flex;
+            margin-bottom: 20px;
+            align-items: flex-start;
+        }
+        
+        .message.user {
+            flex-direction: row-reverse;
+        }
+        
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);
+            color: white;
+            margin-left: 15px;
+        }
+        
+        .message.bot .message-avatar {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            margin-right: 15px;
+        }
+        
+        .message-content {
+            max-width: 80%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+        
+        .message.user .message-content {
+            background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .message.bot .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e9ecef;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 10px;
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        #messageInput {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+        
+        #messageInput:focus {
+            border-color: #6c5ce7;
+        }
+        
+        #sendButton {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        #sendButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108, 92, 231, 0.4);
+        }
+        
+        #sendButton:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        
+        .status-bar {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status-bar.online {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
+        
+        /* Purchase Order Start Button */
+        .po-trigger-btn {
+            background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .po-trigger-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 184, 148, 0.3);
+        }
+
+        /* Purchase Order Panel */
+        .po-panel {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 450px;
+            height: 100vh;
+            background: white;
+            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .po-panel.active {
+            right: 0;
+        }
+
+        .po-header {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .po-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .po-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .po-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .po-content {
+            padding: 20px;
+        }
+
+        /* Mode Toggle */
+        .mode-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            padding: 5px;
+            border-radius: 25px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: transparent;
+            color: #666;
+        }
+
+        .mode-btn.active {
+            background: white;
+            color: #6c5ce7;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .mode-info {
+            display: none;
+        }
+
+        .mode-info.active {
+            display: block;
+        }
+
+        .info-card {
+            background: rgba(108, 92, 231, 0.05);
+            border: 1px solid rgba(108, 92, 231, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .info-card h4 {
+            color: #6c5ce7;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .info-card p {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .required-fields {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #6c5ce7;
+        }
+
+        .required-fields strong {
+            color: #333;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .required-fields ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #666;
+        }
+
+        .required-fields li {
+            margin-bottom: 5px;
+        }
+
+        /* Purchase Order Form */
+        .po-form {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #e9ecef;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #6c5ce7;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(108, 92, 231, 0.3);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-loader {
+            display: none;
+        }
+
+        .form-result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .form-result.success {
+            background: rgba(0, 184, 148, 0.1);
+            color: #00b894;
+            border: 1px solid rgba(0, 184, 148, 0.2);
+        }
+
+        .form-result.error {
+            background: rgba(225, 112, 85, 0.1);
+            color: #e17055;
+            border: 1px solid rgba(225, 112, 85, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .po-panel {
+                width: 100%;
+                right: -100%;
+            }
+            
+            .po-form {
+                padding: 15px;
+            }
+            
+            .mode-toggle {
+                flex-direction: column;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Purchase Order Assistant</h1>
+            <p>Create purchase orders through chat or form interface</p>
+        </div>
+        
+        <div class="chat-container">
+            <div id="messages" class="messages">
+                <div class="message bot">
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-content">
+                        <strong>👋 Welcome to Purchase Order Assistant!</strong><br><br>
+                        I can help you create purchase orders in two ways:<br>
+                        • 💬 <strong>Chat Mode:</strong> Just tell me what you need and I'll guide you<br>
+                        • 📝 <strong>Form Mode:</strong> Fill out a structured form<br><br>
+                        <strong>Required Information:</strong><br>
+                        • Purchase Order ID<br>
+                        • Vendor ID<br>
+                        • Product<br>
+                        • Quantity<br><br>
+                        Try saying: <em>"I want to create a purchase order"</em>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="typing-indicator" id="typingIndicator">
+                Bot is typing...
+            </div>
+            
+            <div class="input-container">
+                <input type="text" id="messageInput" placeholder="Tell me about your purchase order requirements..." maxlength="500">
+                <button id="sendButton">Send</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="statusBar" class="status-bar">
+        Connecting...
+    </div>
+
+    <!-- Purchase Order Panel -->
+    <div id="poPanel" class="po-panel">
+        <div class="po-header">
+            <div class="po-title">📋 Purchase Order Creation</div>
+            <div class="po-subtitle">Create purchase order via chat or form</div>
+            <button class="po-close-btn" onclick="closePOPanel()">×</button>
+        </div>
+        
+        <div class="po-content">
+            <!-- Mode Toggle -->
+            <div class="mode-toggle">
+                <button class="mode-btn active" id="chatModeBtn" onclick="switchMode('chat')">💬 Chat Mode</button>
+                <button class="mode-btn" id="formModeBtn" onclick="switchMode('form')">📝 Form Mode</button>
+            </div>
+            
+            <!-- Chat Mode Info -->
+            <div id="chatModeInfo" class="mode-info active">
+                <div class="info-card">
+                    <h4>💬 Chat Mode Active</h4>
+                    <p>Continue chatting to complete your purchase order. I'll guide you through the process step by step.</p>
+                    <div class="required-fields">
+                        <strong>Required Information:</strong>
+                        <ul>
+                            <li>Purchase Order ID</li>
+                            <li>Vendor ID</li>
+                            <li>Product</li>
+                            <li>Quantity</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Form Mode -->
+            <div id="formModeInfo" class="mode-info">
+                <form id="purchaseOrderForm" class="po-form">
+                    <div class="form-group">
+                        <label for="poId">Purchase Order ID *</label>
+                        <input type="text" id="poId" name="poId" required placeholder="Enter PO ID (e.g., PO-2025-001)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="vendorId">Vendor ID *</label>
+                        <input type="text" id="vendorId" name="vendorId" required placeholder="Enter Vendor ID (e.g., VEN001)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="product">Product *</label>
+                        <input type="text" id="product" name="product" required placeholder="Enter product name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="quantity">Quantity *</label>
+                        <input type="number" id="quantity" name="quantity" required placeholder="Enter quantity" min="1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="notes">Notes (Optional)</label>
+                        <textarea id="notes" name="notes" placeholder="Additional notes or specifications..." rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="deliveryDate">Delivery Date (Optional)</label>
+                        <input type="date" id="deliveryDate" name="deliveryDate">
+                    </div>
+                    
+                    <button type="submit" class="submit-btn">
+                        <span class="btn-text">🚀 Create Purchase Order</span>
+                        <span class="btn-loader" style="display: none;">⏳ Creating...</span>
+                    </button>
+                </form>
+                
+                <div id="formResult" class="form-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = 'po_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        let currentMode = 'chat';
+        
+        const messagesContainer = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const statusBar = document.getElementById('statusBar');
+        
+        // Initialize
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        sendButton.addEventListener('click', sendMessage);
+        
+        // Check API status on load
+        checkApiStatus();
+        
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+            
+            // Add avatar
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'message-avatar';
+            avatarDiv.innerHTML = isUser ? '👤' : '🤖';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            // Format content with enhanced markdown support
+            content = content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br>')
+                .replace(/📝|🏢|💬|📚|🔐|✅|🎉|⚠️|❌/g, '<span style="font-size: 1.2em;">$&</span>');
+            
+            contentDiv.innerHTML = content;
+            
+            // Add purchase order trigger button for bot messages
+            if (!isUser && isPurchaseOrderTrigger(content)) {
+                const startButton = document.createElement('button');
+                startButton.className = 'po-trigger-btn';
+                startButton.innerHTML = '🚀 Open Purchase Order Panel';
+                startButton.onclick = () => openPOPanel();
+                contentDiv.appendChild(document.createElement('br'));
+                contentDiv.appendChild(document.createElement('br'));
+                contentDiv.appendChild(startButton);
+            }
+            
+            messageDiv.appendChild(avatarDiv);
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function isPurchaseOrderTrigger(content) {
+            const triggers = [
+                'purchase order', 'po ', 'procurement', 'buying', 'order', 
+                'purchase', 'vendor', 'supplier', 'product', 'quantity'
+            ];
+            const lowerContent = content.toLowerCase();
+            return triggers.some(trigger => lowerContent.includes(trigger));
+        }
+        
+        function showTyping() {
+            typingIndicator.style.display = 'block';
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function hideTyping() {
+            typingIndicator.style.display = 'none';
+        }
+        
+        function setButtonState(disabled) {
+            sendButton.disabled = disabled;
+            messageInput.disabled = disabled;
+        }
+        
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, true);
+            messageInput.value = '';
+            
+            // Show typing and disable input
+            showTyping();
+            setButtonState(true);
+            
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: sessionId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.response) {
+                    addMessage(data.response);
+                } else {
+                    addMessage('Sorry, I encountered an error. Please try again.');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('Connection error. Please check your internet connection and try again.');
+            } finally {
+                hideTyping();
+                setButtonState(false);
+                messageInput.focus();
+            }
+        }
+        
+        async function checkApiStatus() {
+            try {
+                const response = await fetch('/api-status');
+                const data = await response.json();
+                
+                if (data.status === 'healthy') {
+                    statusBar.textContent = '✅ Connected and ready';
+                    statusBar.className = 'status-bar online';
+                } else {
+                    statusBar.textContent = '⚠️ Limited functionality';
+                    statusBar.className = 'status-bar';
+                }
+            } catch (error) {
+                statusBar.textContent = '❌ Connection error';
+                statusBar.className = 'status-bar';
+            }
+        }
+        
+        // Purchase Order Panel Functions
+        function openPOPanel() {
+            document.getElementById('poPanel').classList.add('active');
+            switchMode('chat'); // Default to chat mode
+        }
+        
+        function closePOPanel() {
+            document.getElementById('poPanel').classList.remove('active');
+            // Reset form and hide results
+            document.getElementById('purchaseOrderForm').reset();
+            hideFormResult();
+        }
+        
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // Update button states
+            document.getElementById('chatModeBtn').classList.toggle('active', mode === 'chat');
+            document.getElementById('formModeBtn').classList.toggle('active', mode === 'form');
+            
+            // Update content visibility
+            document.getElementById('chatModeInfo').classList.toggle('active', mode === 'chat');
+            document.getElementById('formModeInfo').classList.toggle('active', mode === 'form');
+        }
+        
+        // Form Handling Functions
+        function showFormResult(message, isSuccess = true) {
+            const resultDiv = document.getElementById('formResult');
+            resultDiv.textContent = message;
+            resultDiv.className = `form-result ${isSuccess ? 'success' : 'error'}`;
+            resultDiv.style.display = 'block';
+        }
+        
+        function hideFormResult() {
+            document.getElementById('formResult').style.display = 'none';
+        }
+        
+        function setFormLoading(loading) {
+            const submitBtn = document.querySelector('.submit-btn');
+            const btnText = submitBtn.querySelector('.btn-text');
+            const btnLoader = submitBtn.querySelector('.btn-loader');
+            
+            if (loading) {
+                btnText.style.display = 'none';
+                btnLoader.style.display = 'inline';
+                submitBtn.disabled = true;
+            } else {
+                btnText.style.display = 'inline';
+                btnLoader.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        }
+        
+        // Form Submission Handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('purchaseOrderForm');
+            if (form) {
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    // Get form data
+                    const formData = new FormData(form);
+                    const purchaseOrderData = {
+                        po_id: formData.get('poId'),
+                        vendor_id: formData.get('vendorId'),
+                        product: formData.get('product'),
+                        quantity: parseInt(formData.get('quantity')),
+                        notes: formData.get('notes') || '',
+                        delivery_date: formData.get('deliveryDate') || ''
+                    };
+
+                    // Validate required fields
+                    if (!purchaseOrderData.po_id || !purchaseOrderData.vendor_id || 
+                        !purchaseOrderData.product || !purchaseOrderData.quantity) {
+                        showFormResult('Please fill in all required fields.', false);
+                        return;
+                    }
+
+                    setFormLoading(true);
+                    hideFormResult();
+
+                    try {
+                        // Submit to purchase order API
+                        const response = await fetch('/api/purchase-order', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(purchaseOrderData)
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok && result.success) {
+                            showFormResult(`✅ Purchase Order created successfully! Document ID: ${result.document_id}`, true);
+                            form.reset();
+                            
+                            // Also add a chat message to show the success
+                            addMessage(`🎉 Purchase Order created via form! Document ID: ${result.document_id}`);
+                        } else {
+                            showFormResult(`❌ Error: ${result.error || 'Failed to create purchase order'}`, false);
+                        }
+                    } catch (error) {
+                        console.error('Form submission error:', error);
+                        showFormResult('❌ Connection error. Please try again.', false);
+                    } finally {
+                        setFormLoading(false);
+                    }
+                });
+            }
+        });
+        
+        // Check status periodically
+        setInterval(checkApiStatus, 30000);
+    </script>
+</body>
+</html>

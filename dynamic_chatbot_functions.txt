@@ -1,0 +1,32 @@
+1. **`__init__`**
+   - **Purpose**: Initializes the chatbot, sets up AI model (Gemini), and configures logging. If AI is unavailable, it runs in a limited mode.
+
+2. **`process_message`**
+   - **Purpose**: Processes user input dynamically, tracks session state, and routes the input to AI or fallback logic for response generation.
+
+3. **`_process_with_ai`**
+   - **Purpose**: Handles AI-powered processing of user input, including intent analysis and task routing.
+
+4. **`_handle_ai_response`**
+   - **Purpose**: Processes the AI's analysis, validates user access, and manages task-specific actions.
+
+5. **`_process_without_ai`**
+   - **Purpose**: Provides fallback logic for processing user input without AI, including basic intent detection and data extraction.
+
+6. **`_build_context`**
+   - **Purpose**: Constructs a dynamic context string based on the current session state, including tasks, collected data, and recent conversation history.
+
+7. **`_extract_data_universal`**
+   - **Purpose**: Extracts structured data (e.g., email, phone, IDs) from user input using regex patterns.
+
+8. **`_get_missing_fields`**
+   - **Purpose**: Identifies missing required fields for a given task or collection based on predefined schemas.
+
+9. **`_request_confirmation`**
+   - **Purpose**: Generates a confirmation prompt summarizing collected data and asking the user to confirm before saving.
+
+10. **`_save_to_database`**
+    - **Purpose**: Saves collected data to the database or API, including eligibility checks for supplier registration.
+
+11. **`_create_fallback_response`**
+    - **Purpose**: Generates a fallback response in case of errors or unhandled scenarios during processing.
