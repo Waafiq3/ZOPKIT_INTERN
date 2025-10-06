@@ -1389,7 +1389,6 @@ def process_react_chat(user_input: str, session_id: str, user_context: dict = No
         # Step 2: ROUTING - Determine target collection
         logger.info("🎯 Step 2: Dynamic collection routing...")
         routing_result = collection_router.route_request(
-            user_intent=reasoning_result.intent,
             user_input=user_input,
             confidence_threshold=ConfidenceLevel.MEDIUM
         )
