@@ -569,7 +569,9 @@ Please provide the missing information and try again.""",
             
             # Validate user registration data
             if state["current_task"] == "user_registration" and VALIDATION_AVAILABLE:
-                is_valid, validation_errors = validate_user_data(state["collected_data"])
+                validation_result = validate_user_data(state["collected_data"])
+                is_valid = validation_result.get("valid", False)
+                validation_errors = validation_result.get("errors", [])
                 
                 if not is_valid:
                     error_message = f"""❌ **User Registration Validation Failed**
@@ -747,7 +749,9 @@ Rules:
             
             # Validate user registration data immediately when updated
             if task_type == "user_registration" and VALIDATION_AVAILABLE:
-                is_valid, validation_errors = validate_user_data(state["collected_data"])
+                validation_result = validate_user_data(state["collected_data"])
+                is_valid = validation_result.get("valid", False)
+                validation_errors = validation_result.get("errors", [])
                 
                 if not is_valid:
                     error_message = f"""❌ **Data Validation Error**

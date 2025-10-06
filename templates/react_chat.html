@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZOPKIT ReAct Enterprise Chatbot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 800px;
+            height: 90vh;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .chat-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .chat-header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 12px;
+            height: 12px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .user-profile {
+            background: rgba(255, 255, 255, 0.1);
+            margin: 10px 20px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .user-profile.authenticated {
+            display: block;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message.bot {
+            text-align: left;
+        }
+
+        .message-content {
+            display: inline-block;
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.bot .message-content {
+            background: #f1f5f9;
+            color: #334155;
+            border-bottom-left-radius: 5px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .message-meta {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 5px;
+        }
+
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .suggestion-chip {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid #bae6fd;
+            transition: all 0.2s ease;
+        }
+
+        .suggestion-chip:hover {
+            background: #0369a1;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .progress-bar {
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 6px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        .field-info {
+            background: #fef3c7;
+            border: 1px solid #fde047;
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .auth-form {
+            background: #fef9e7;
+            border: 1px solid #facc15;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .auth-form input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .auth-form button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s ease;
+        }
+
+        .auth-form button:hover {
+            transform: translateY(-2px);
+        }
+
+        .error-message {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #dc2626;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .success-message {
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            color: #16a34a;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .chat-input:focus {
+            border-color: #4facfe;
+        }
+
+        .send-button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease;
+            font-size: 18px;
+        }
+
+        .send-button:hover {
+            transform: scale(1.05);
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 20px;
+            background: #f1f5f9;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #64748b;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .quick-action {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .quick-action:hover {
+            background: #e2e8f0;
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 768px) {
+            .chat-container {
+                width: 95%;
+                height: 95vh;
+                border-radius: 15px;
+            }
+
+            .message-content {
+                max-width: 80%;
+            }
+
+            .chat-header h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="status-indicator"></div>
+            <h1>ZOPKIT ReAct Enterprise</h1>
+            <p>AI-Powered Business Operations Assistant</p>
+            <div class="user-profile" id="userProfile">
+                <strong id="userInfo">Not Authenticated</strong>
+                <div id="userDetails"></div>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-content">
+                    <strong>Welcome to ZOPKIT ReAct Enterprise! 🚀</strong><br><br>
+                    I'm your AI-powered business operations assistant. I can help you with:
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li>User Registration & Management</li>
+                        <li>Purchase Orders & Procurement</li>
+                        <li>Employee Leave Requests</li>
+                        <li>Supplier & Client Management</li>
+                        <li>Inventory & Warehouse Operations</li>
+                        <li>And 44+ other business operations!</li>
+                    </ul>
+                    How can I assist you today?
+                </div>
+                <div class="message-meta">ReAct AI • Just now</div>
+            </div>
+
+            <div class="quick-actions">
+                <div class="quick-action" onclick="sendQuickMessage('I want to register a new user')">👤 Register User</div>
+                <div class="quick-action" onclick="sendQuickMessage('I need to create a purchase order')">🛒 Purchase Order</div>
+                <div class="quick-action" onclick="sendQuickMessage('I want to request leave')">🏖️ Leave Request</div>
+                <div class="quick-action" onclick="sendQuickMessage('Register a new supplier')">🏭 Supplier Registration</div>
+                <div class="quick-action" onclick="sendQuickMessage('I need help')">❓ Help</div>
+            </div>
+
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+                <span>AI is thinking...</span>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Type your message here..." autocomplete="off">
+                <button id="sendButton" class="send-button" onclick="sendMessage()">
+                    <span>➤</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let sessionId = null;
+        let isAuthenticated = false;
+        let currentUser = null;
+
+        // Initialize chat
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChat();
+            setupEventListeners();
+        });
+
+        function initializeChat() {
+            // Generate session ID
+            sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            console.log('🚀 Chat initialized with session:', sessionId);
+        }
+
+        function setupEventListeners() {
+            const chatInput = document.getElementById('chatInput');
+            const sendButton = document.getElementById('sendButton');
+
+            // Enter key to send message
+            chatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Auto-focus input
+            chatInput.focus();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            // Clear input and disable send button
+            input.value = '';
+            toggleSendButton(false);
+
+            // Add user message to chat
+            addMessage(message, 'user');
+
+            // Show typing indicator
+            showTypingIndicator(true);
+
+            try {
+                // Send message to ReAct API
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: sessionId,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Hide typing indicator
+                showTypingIndicator(false);
+
+                if (response.ok) {
+                    handleChatResponse(data);
+                } else {
+                    addMessage('Sorry, I encountered an error: ' + (data.error || 'Unknown error'), 'bot', 'error');
+                }
+
+            } catch (error) {
+                console.error('Chat error:', error);
+                showTypingIndicator(false);
+                addMessage('Sorry, I\'m having trouble connecting. Please try again.', 'bot', 'error');
+            }
+
+            // Re-enable send button
+            toggleSendButton(true);
+            input.focus();
+        }
+
+        function handleChatResponse(data) {
+            console.log('📨 Chat response:', data);
+
+            const actionResult = data.action_result || {};
+            const reasoning = data.reasoning || {};
+            const uiActions = data.ui_actions || {};
+
+            // Handle authentication success
+            if (actionResult.action === 'authentication_success') {
+                isAuthenticated = true;
+                currentUser = actionResult.user_profile;
+                updateUserProfile(currentUser);
+            }
+
+            // Add bot response message
+            const responseMessage = data.response || 'I processed your request.';
+            addMessage(responseMessage, 'bot', null, {
+                action: actionResult.action,
+                reasoning: reasoning,
+                actionResult: actionResult
+            });
+
+            // Handle specific UI actions
+            if (uiActions.show_auth_form) {
+                showAuthenticationForm();
+            }
+
+            if (uiActions.show_suggestions && actionResult.suggestions) {
+                showSuggestions(actionResult.suggestions);
+            }
+
+            if (uiActions.show_progress && actionResult.progress) {
+                showProgress(actionResult.progress, actionResult.collected_fields, actionResult.missing_fields);
+            }
+
+            if (actionResult.field_needed && actionResult.prompt) {
+                showFieldPrompt(actionResult.field_needed, actionResult.prompt);
+            }
+        }
+
+        function addMessage(content, sender, type = null, metadata = null) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            if (type === 'error') {
+                messageContent.innerHTML = `<div class="error-message">${content}</div>`;
+            } else if (type === 'success') {
+                messageContent.innerHTML = `<div class="success-message">${content}</div>`;
+            } else {
+                messageContent.innerHTML = content;
+            }
+
+            const messageMeta = document.createElement('div');
+            messageMeta.className = 'message-meta';
+            messageMeta.textContent = sender === 'user' ? 'You • Just now' : 'ReAct AI • Just now';
+
+            messageDiv.appendChild(messageContent);
+            messageDiv.appendChild(messageMeta);
+
+            // Add metadata info for debugging (can be removed in production)
+            if (metadata && metadata.reasoning) {
+                const debugInfo = document.createElement('div');
+                debugInfo.style.fontSize = '11px';
+                debugInfo.style.color = '#64748b';
+                debugInfo.style.marginTop = '5px';
+                debugInfo.innerHTML = `
+                    <details>
+                        <summary>🧠 AI Analysis (Debug)</summary>
+                        <div style="margin-top: 5px;">
+                            <strong>Intent:</strong> ${metadata.reasoning.intent || 'Unknown'}<br>
+                            <strong>Confidence:</strong> ${((metadata.reasoning.confidence || 0) * 100).toFixed(1)}%<br>
+                            <strong>Target Collection:</strong> ${metadata.reasoning.target_collection || 'None'}<br>
+                            <strong>Action:</strong> ${metadata.action || 'Unknown'}
+                        </div>
+                    </details>
+                `;
+                messageContent.appendChild(debugInfo);
+            }
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showAuthenticationForm() {
+            const messagesContainer = document.getElementById('chatMessages');
+            const authDiv = document.createElement('div');
+            authDiv.className = 'message bot';
+            authDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="auth-form">
+                        <strong>Authentication Required</strong>
+                        <p>Please enter your Employee ID to continue:</p>
+                        <input type="text" id="employeeIdInput" placeholder="e.g., EMP001" maxlength="10">
+                        <button onclick="authenticateUser()">Authenticate</button>
+                    </div>
+                </div>
+                <div class="message-meta">ReAct AI • Just now</div>
+            `;
+            messagesContainer.appendChild(authDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Focus on the input
+            setTimeout(() => {
+                document.getElementById('employeeIdInput').focus();
+            }, 100);
+        }
+
+        async function authenticateUser() {
+            const employeeId = document.getElementById('employeeIdInput').value.trim();
+            
+            if (!employeeId) {
+                alert('Please enter your Employee ID');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        employee_id: employeeId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    isAuthenticated = true;
+                    currentUser = data.user_profile;
+                    updateUserProfile(currentUser);
+                    addMessage(`Welcome ${currentUser.employee_id}! You are now authenticated and can access business operations.`, 'bot', 'success');
+                } else {
+                    addMessage(`Authentication failed: ${data.error}`, 'bot', 'error');
+                }
+
+            } catch (error) {
+                console.error('Authentication error:', error);
+                addMessage('Authentication failed due to connection error.', 'bot', 'error');
+            }
+        }
+
+        function updateUserProfile(userProfile) {
+            const profileDiv = document.getElementById('userProfile');
+            const userInfo = document.getElementById('userInfo');
+            const userDetails = document.getElementById('userDetails');
+
+            userInfo.textContent = `${userProfile.employee_id} - ${userProfile.department}`;
+            userDetails.innerHTML = `
+                <div style="margin-top: 5px; font-size: 11px;">
+                    Position: ${userProfile.position} | 
+                    Access: ${userProfile.access_level} | 
+                    Roles: ${userProfile.roles.join(', ')}
+                </div>
+            `;
+
+            profileDiv.classList.add('authenticated');
+        }
+
+        function showSuggestions(suggestions) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const suggestionDiv = document.createElement('div');
+            suggestionDiv.className = 'message bot';
+            
+            let suggestionsHtml = '<div class="suggestions">';
+            suggestions.forEach(suggestion => {
+                suggestionsHtml += `
+                    <div class="suggestion-chip" onclick="sendQuickMessage('I want to ${suggestion.description.toLowerCase()}')">
+                        ${suggestion.description}
+                        <br><small>${suggestion.fields_required} fields required</small>
+                    </div>
+                `;
+            });
+            suggestionsHtml += '</div>';
+
+            suggestionDiv.innerHTML = `
+                <div class="message-content">
+                    Choose an option:
+                    ${suggestionsHtml}
+                </div>
+                <div class="message-meta">ReAct AI • Just now</div>
+            `;
+
+            messagesContainer.appendChild(suggestionDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showProgress(progressText, collectedFields, missingFields) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const progressDiv = document.createElement('div');
+            progressDiv.className = 'message bot';
+
+            const progressPercent = parseInt(progressText.replace('%', ''));
+            
+            progressDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="field-info">
+                        <strong>Data Collection Progress: ${progressText}</strong>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            ✅ Collected: ${collectedFields ? collectedFields.join(', ') : 'None'}<br>
+                            ⏳ Still needed: ${missingFields ? missingFields.join(', ') : 'None'}
+                        </div>
+                    </div>
+                </div>
+                <div class="message-meta">ReAct AI • Just now</div>
+            `;
+
+            messagesContainer.appendChild(progressDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showFieldPrompt(fieldName, prompt) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const promptDiv = document.createElement('div');
+            promptDiv.className = 'message bot';
+            
+            promptDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="field-info">
+                        <strong>Field Required: ${fieldName.replace('_', ' ').toUpperCase()}</strong><br>
+                        ${prompt}
+                    </div>
+                </div>
+                <div class="message-meta">ReAct AI • Just now</div>
+            `;
+
+            messagesContainer.appendChild(promptDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function sendQuickMessage(message) {
+            document.getElementById('chatInput').value = message;
+            sendMessage();
+        }
+
+        function showTypingIndicator(show) {
+            const indicator = document.getElementById('typingIndicator');
+            indicator.style.display = show ? 'flex' : 'none';
+            
+            if (show) {
+                const messagesContainer = document.getElementById('chatMessages');
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        }
+
+        function toggleSendButton(enabled) {
+            const sendButton = document.getElementById('sendButton');
+            sendButton.disabled = !enabled;
+        }
+
+        // Add some utility functions for enhanced UX
+        function resetChat() {
+            if (confirm('Are you sure you want to reset the chat? This will clear all conversation history.')) {
+                location.reload();
+            }
+        }
+
+        function exportChat() {
+            const messages = document.querySelectorAll('.message');
+            let chatHistory = 'ZOPKIT ReAct Chat Export\n';
+            chatHistory += '=' .repeat(30) + '\n\n';
+            
+            messages.forEach(message => {
+                const sender = message.classList.contains('user') ? 'User' : 'ReAct AI';
+                const content = message.querySelector('.message-content').textContent.trim();
+                const time = message.querySelector('.message-meta').textContent;
+                
+                chatHistory += `[${sender}] ${time}\n${content}\n\n`;
+            });
+            
+            const blob = new Blob([chatHistory], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `zopkit-chat-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + R to reset chat
+            if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                e.preventDefault();
+                resetChat();
+            }
+            
+            // Ctrl/Cmd + E to export chat
+            if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                e.preventDefault();
+                exportChat();
+            }
+        });
+
+        console.log('🚀 ZOPKIT ReAct Enterprise Chatbot loaded successfully!');
+        console.log('💡 Keyboard shortcuts: Ctrl+R (reset), Ctrl+E (export)');
+    </script>
+</body>
+</html>

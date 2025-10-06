@@ -611,9 +611,9 @@ from bson import ObjectId
 try:
     mongo_client = MongoClient("mongodb://localhost:27017")
     mongo_db = mongo_client["enterprise_db"]
-    print("✅ MongoDB connected for integration functions")
+    print("[SUCCESS] MongoDB connected for integration functions")
 except Exception as e:
-    print(f"❌ MongoDB connection failed: {e}")
+    print(f"[ERROR] MongoDB connection failed: {e}")
     mongo_db = None
 
 # Simplified field mappings for key collections
@@ -659,14 +659,14 @@ def api_insert_document(collection_name: str, document: Dict[str, Any]) -> Dict[
         # First try to call the actual API endpoint
         try:
             url = f"{GENERIC_API_URL}/api/{collection_name}"
-            print(f"🌐 Calling API endpoint: {url}")
+            print(f"[API] Calling API endpoint: {url}")
             
             response = requests.post(url, json=document, timeout=API_TIMEOUT)
             
             if response.status_code == 200:
                 api_result = response.json()
-                print(f"✅ API endpoint call successful")
-                print(f"📄 API Response: {api_result}")
+                print(f"[SUCCESS] API endpoint call successful")
+                print(f"[RESPONSE] API Response: {api_result}")
                 
                 # Extract document ID from API response
                 document_id = "unknown"
@@ -765,31 +765,31 @@ def transform_fields_to_display_format(collection_name: str, document: Dict[str,
     
     return transformed
 
-# def api_check_supplier_eligibility(supplier_data: Dict[str, Any]) -> Dict[str, Any]:
-#     """Check supplier eligibility - simplified version"""
-#     try:
-#         # Basic validation
-#         required = ["company_name", "contact_email"]
-#         missing = [f for f in required if f not in supplier_data or not supplier_data[f]]
+def api_check_supplier_eligibility(supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Check supplier eligibility - simplified version"""
+    try:
+        # Basic validation
+        required = ["company_name", "contact_email"]
+        missing = [f for f in required if f not in supplier_data or not supplier_data[f]]
         
-#         if missing:
-#             return {
-#                 'eligible': False,
-#                 'reason': f'Missing required fields: {", ".join(missing)}'
-#             }
+        if missing:
+            return {
+                'eligible': False,
+                'reason': f'Missing required fields: {", ".join(missing)}'
+            }
         
-#         # Simple eligibility check
-#         return {
-#             'eligible': True,
-#             'reason': 'All requirements met'
-#         }
+        # Simple eligibility check
+        return {
+            'eligible': True,
+            'reason': 'All requirements met'
+        }
         
-#     except Exception as e:
-#         return {
-#             'eligible': False,
-#             'reason': f'Error checking eligibility: {str(e)}'
-#         }
+    except Exception as e:
+        return {
+            'eligible': False,
+            'reason': f'Error checking eligibility: {str(e)}'
+        }
 
 if __name__ == "__main__":
-    print("🚀 Starting Flask API server with chatbot integration...")
+    print("[STARTUP] Starting Flask API server with chatbot integration...")
     app.run(debug=True, host='0.0.0.0', port=5000)

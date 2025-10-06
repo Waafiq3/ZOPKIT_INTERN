@@ -1,0 +1,48 @@
+# ZOPKIT ReAct Enterprise Chatbot Requirements
+# Revolutionary AI-powered business operations system with zero hardcoding
+
+# Core Web Framework
+Flask==2.3.3
+Flask-CORS==4.0.0
+
+# Database Operations  
+pymongo==4.5.0
+
+# AI and Machine Learning
+google-generativeai==0.3.2
+
+# Data Processing and Validation
+email-validator==2.0.0
+python-dateutil==2.8.2
+
+# Utilities and Helpers
+uuid==1.30
+typing-extensions==4.8.0
+
+# Development and Debugging
+python-dotenv==1.0.0
+
+# Optional: Enhanced logging and monitoring
+structlog==23.1.0
+
+# Optional: Advanced data validation
+pydantic==2.4.2
+
+# Optional: Enhanced security
+cryptography==41.0.7
+
+# Optional: API documentation
+flask-restx==1.2.0
+
+# Optional: Caching
+redis==5.0.1
+
+# Optional: Background tasks
+celery==5.3.4
+
+# Production server (optional)
+gunicorn==21.2.0
+
+# Testing (optional)
+pytest==7.4.3
+pytest-flask==1.3.0

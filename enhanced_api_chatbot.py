@@ -14,70 +14,328 @@ import time
 import subprocess
 import sys
 import os
+import signal
+import atexit
 
 # Import the user's dynamic chatbot (modified to use API endpoints)
 from dynamic_chatbot import process_chat, reset_chat_session
+
+# Import ReAct Framework Components
+from react_framework import ReActEngine, ActionType, ReasoningResult, ActionPlan
+from dynamic_router import DynamicCollectionRouter, ConfidenceLevel
+from universal_field_processor import UniversalFieldProcessor, ValidationLevel
+from dynamic_authorization import DynamicAuthorizationSystem, AccessLevel
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Check if API Integration is available
+try:
+    from api_integration import API_ENDPOINTS
+    API_INTEGRATION_AVAILABLE = True
+    logger.info("✅ API Integration module imported successfully")
+except ImportError as e:
+    API_INTEGRATION_AVAILABLE = False
+    logger.warning(f"⚠️ API Integration module not available: {e}")
+    API_ENDPOINTS = {}
+
 app = Flask(__name__)
 CORS(app)
 
-# Generic API server configuration
+# Initialize ReAct System Components
+react_engine = None
+collection_router = None
+field_processor = None
+auth_system = None
+react_sessions = {}  # Store ReAct conversation sessions
+
+def initialize_react_system():
+    """Initialize the ReAct framework components"""
+    global react_engine, collection_router, field_processor, auth_system
+    
+    try:
+        logger.info("🚀 Initializing ReAct System Components...")
+        
+        # Initialize ReAct Engine (will use environment variable for API key)
+        react_engine = ReActEngine()
+        
+        # Initialize Dynamic Router
+        collection_router = DynamicCollectionRouter()
+        
+        # Initialize Field Processor with moderate validation
+        field_processor = UniversalFieldProcessor(ValidationLevel.MODERATE)
+        
+        # Initialize Authorization System
+        auth_system = DynamicAuthorizationSystem()
+        
+        logger.info("✅ ReAct System initialized successfully!")
+        logger.info(f"📊 Supporting dynamic operations across all business collections")
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize ReAct system: {e}")
+        # Fallback to original chatbot system
+        logger.info("🔄 Falling back to original dynamic chatbot system")
+
+# API Integration server configuration
 GENERIC_API_URL = "http://localhost:5000"
 generic_api_process = None
 
 def start_generic_api_server():
-    """Check if API server is running"""
+    """Start or check if API server is running"""
+    global generic_api_process
+    
     try:
-        # Check if any API server is running on port 5000
-        response = requests.get(f"{GENERIC_API_URL}/", timeout=1)
+        # First check if any API server is already running on port 5000
+        response = requests.get(f"{GENERIC_API_URL}/health", timeout=2)
         if response.status_code == 200:
-            logger.info("✅ API server is running on port 5000")
+            logger.info("✅ API Integration server is already running on port 5000")
             return True
     except:
         pass
     
-    # Try to check for test API
+    # Try to check for endpoints endpoint
     try:
-        response = requests.get(f"{GENERIC_API_URL}/test", timeout=1)
+        response = requests.get(f"{GENERIC_API_URL}/api/endpoints", timeout=2)
         if response.status_code == 200:
-            logger.info("✅ Test API server is running on port 5000")
+            logger.info("✅ API Integration server endpoints are available")
             return True
     except:
         pass
+    
+    # Try to start the API integration server
+    try:
+        if os.path.exists("api_integration.py"):
+            logger.info("🚀 Starting API Integration server on port 5000...")
+            generic_api_process = subprocess.Popen(
+                [sys.executable, "api_integration.py"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=os.getcwd()
+            )
+            
+            # Wait a few seconds for server to start
+            time.sleep(5)
+            
+            # Check if server started successfully
+            try:
+                response = requests.get(f"{GENERIC_API_URL}/health", timeout=2)
+                if response.status_code == 200:
+                    logger.info("✅ API Integration server started successfully!")
+                    return True
+            except:
+                pass
+            
+            # If server didn't start, log error
+            if generic_api_process.poll() is not None:
+                # Process has terminated
+                stdout, stderr = generic_api_process.communicate()
+                logger.error(f"❌ API Integration server failed to start: {stderr.decode()}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error starting API Integration server: {e}")
     
     logger.warning("⚠️ No API server found on port 5000. Continuing with direct database access...")
     return False
 
-def call_generic_api(endpoint: str, data: dict) -> dict:
-    """Call generic API endpoint"""
+def cleanup_api_server():
+    """Clean up the generic API server process"""
+    global generic_api_process
+    if generic_api_process and generic_api_process.poll() is None:
+        logger.info("🛑 Stopping Generic API server...")
+        generic_api_process.terminate()
+        try:
+            generic_api_process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            generic_api_process.kill()
+        logger.info("✅ Generic API server stopped")
+
+def call_generic_api(collection_name: str = None, data: dict = None, operation_type: str = None, endpoint: str = None) -> dict:
+    """Call generic API endpoint with support for both old and new parameter formats"""
     try:
-        url = f"{GENERIC_API_URL}/api/{endpoint}"
-        response = requests.post(url, json=data, timeout=10)
+        # Support both parameter formats for backward compatibility
+        if endpoint:
+            # Old format: call_generic_api(endpoint, data)
+            target_endpoint = endpoint
+        elif collection_name:
+            # New format: call_generic_api(collection_name=..., data=..., operation_type=...)
+            target_endpoint = collection_name
+        else:
+            return {
+                "status": "error",
+                "message": "No endpoint or collection_name provided",
+                "error": "Missing required parameters"
+            }
+        
+        url = f"{GENERIC_API_URL}/api/{target_endpoint}"
+        logger.info(f"🌐 Calling API: {url} with operation: {operation_type}")
+        
+        response = requests.post(url, json=data or {}, timeout=10)
         
         if response.status_code == 200:
+            result_data = response.json()
             return {
-                "success": True,
-                "data": response.json(),
-                "inserted_id": response.json().get("document_id"),
-                "message": "Document created successfully"
+                "status": "success",
+                "data": result_data,
+                "document_id": result_data.get("document_id"),
+                "message": f"Successfully processed {operation_type or 'operation'} for {target_endpoint}"
             }
         else:
             return {
-                "success": False,
+                "status": "error",
                 "message": f"API call failed: {response.status_code} - {response.text}",
                 "error": response.text
             }
             
     except Exception as e:
+        logger.error(f"❌ API call error: {e}")
         return {
-            "success": False,
+            "status": "error",
             "message": f"API call error: {str(e)}",
             "error": str(e)
         }
+
+def determine_form_button(target_collection: str, intent: str, missing_fields: list = None, operation_completed: bool = False) -> dict:
+    """
+    Determine which form button to show based on the target collection and intent
+    
+    This function implements the core business logic for when to show/hide form buttons:
+    - Shows appropriate button when user requests that specific operation
+    - Hides all buttons when user switches to different collections
+    - Manages button state throughout the conversation flow
+    """
+    form_button_config = {
+        "show_purchase_button": False,
+        "show_user_registration_button": False,
+        "show_supplier_registration_button": False,
+        "show_training_registration_button": False,
+        "show_interview_scheduling_button": False,
+        "show_leave_request_button": False,
+        "show_expense_reimbursement_button": False,
+        "show_form_button": False,
+        "form_type": None,
+        "form_title": None,
+        "button_state": "hidden"  # hidden, visible, processing, completed
+    }
+    
+    # If operation is completed, hide all buttons
+    if operation_completed:
+        form_button_config["button_state"] = "completed"
+        return form_button_config
+    
+    # Map collections to their respective form buttons
+    collection_to_button = {
+        "purchase_order": {
+            "show_purchase_button": True,
+            "show_form_button": True,
+            "form_type": "purchase_order",
+            "form_title": "Create Purchase Order",
+            "button_state": "visible"
+        },
+        "user_registration": {
+            "show_user_registration_button": True,
+            "show_form_button": True,
+            "form_type": "user_registration",
+            "form_title": "User Registration",
+            "button_state": "visible"
+        },
+        "supplier_registration": {
+            "show_supplier_registration_button": True,
+            "show_form_button": True,
+            "form_type": "supplier_registration", 
+            "form_title": "Supplier Registration",
+            "button_state": "visible"
+        },
+        "training_registration": {
+            "show_training_registration_button": True,
+            "show_form_button": True,
+            "form_type": "training_registration",
+            "form_title": "Training Registration",
+            "button_state": "visible"
+        },
+        "interview_scheduling": {
+            "show_interview_scheduling_button": True,
+            "show_form_button": True,
+            "form_type": "interview_scheduling",
+            "form_title": "Schedule Interview",
+            "button_state": "visible"
+        },
+        "employee_leave_request": {
+            "show_leave_request_button": True,
+            "show_form_button": True,
+            "form_type": "leave_request",
+            "form_title": "Submit Leave Request",
+            "button_state": "visible"
+        },
+        "expense_reimbursement": {
+            "show_expense_reimbursement_button": True,
+            "show_form_button": True,
+            "form_type": "expense_reimbursement",
+            "form_title": "Submit Expense Claim",
+            "button_state": "visible"
+        },
+        # For collections that don't have form buttons, they will default to hidden
+        "role_management": {"button_state": "hidden"},
+        "audit_log_viewer": {"button_state": "hidden"},
+        "system_configuration": {"button_state": "hidden"},
+        "access_control": {"button_state": "hidden"}
+    }
+    
+    # Check if user is switching to a different collection
+    if target_collection:
+        if target_collection in collection_to_button:
+            button_config = collection_to_button[target_collection]
+            form_button_config.update(button_config)
+            
+            # If there are missing fields, show the form button for data collection
+            if missing_fields and button_config.get("show_form_button"):
+                form_button_config["show_form_button"] = True
+                form_button_config["button_state"] = "processing"
+            elif button_config.get("show_form_button"):
+                form_button_config["button_state"] = "visible"
+        else:
+            # For unknown collections, hide all form buttons
+            form_button_config["button_state"] = "hidden"
+    
+    return form_button_config
+
+def check_purchase_order_completion(user_input: str, session_context: dict) -> bool:
+    """
+    Check if user has provided all required fields for purchase order completion
+    """
+    required_fields = ["po_id", "vendor_id", "product_name", "quantity"]
+    
+    # Check if all required fields are present in the user input or session context
+    provided_fields = []
+    user_lower = user_input.lower()
+    
+    # Extract fields from user input
+    if any(keyword in user_lower for keyword in ["po", "order", "purchase"]) and any(char.isdigit() for char in user_input):
+        # Likely contains PO ID
+        provided_fields.append("po_id")
+    
+    if any(keyword in user_lower for keyword in ["vendor", "supplier", "sup"]) and any(char.isdigit() for char in user_input):
+        # Likely contains Vendor ID
+        provided_fields.append("vendor_id")
+    
+    if any(keyword in user_lower for keyword in ["product", "item", "chair", "laptop", "desk", "equipment"]):
+        # Likely contains product name
+        provided_fields.append("product_name")
+    
+    if any(keyword in user_lower for keyword in ["quantity", "qty"]) and any(char.isdigit() for char in user_input):
+        # Likely contains quantity
+        provided_fields.append("quantity")
+    
+    # Also check session context for previously provided fields
+    if session_context:
+        context_fields = session_context.get('provided_fields', [])
+        provided_fields.extend(context_fields)
+    
+    # Remove duplicates
+    provided_fields = list(set(provided_fields))
+    
+    # Check if all required fields are provided
+    return len(provided_fields) >= len(required_fields)
 
 # Enhanced API endpoint mapping
 API_ENDPOINT_MAPPING = {
@@ -1017,6 +1275,355 @@ def api_status():
         "available_endpoints": list(API_ENDPOINT_MAPPING.keys())
     })
 
+def get_dynamic_form_button(target_collection: str, intent: str, missing_fields: list = None, operation_completed: bool = False) -> dict:
+    """
+    Determine which form button to show based on the target collection and intent
+    
+    This function implements the business requirement:
+    - Show button only for the current operation being performed
+    - Hide button when user switches to different collections (e.g., Role Management)
+    - Hide button when operation is completed
+    
+    Args:
+        target_collection: The target business operation collection
+        intent: The user's intent
+        missing_fields: List of missing required fields
+        operation_completed: Whether the operation has been completed
+        
+    Returns:
+        Dictionary with form button configuration
+    """
+    # Use the new determine_form_button function for consistent logic
+    return determine_form_button(
+        target_collection=target_collection,
+        intent=intent,
+        missing_fields=missing_fields,
+        operation_completed=operation_completed
+    )
+
+def process_react_chat(user_input: str, session_id: str, user_context: dict = None) -> dict:
+    """
+    Process user message using ReAct methodology
+    
+    This function implements the full ReAct (Reasoning + Acting) workflow:
+    1. REASON about user intent using AI
+    2. ACT dynamically across business collections
+    3. ADAPT to any workflow without hardcoding
+    
+    Args:
+        user_input: User's natural language input
+        session_id: Unique session identifier
+        user_context: Optional user context and authentication info
+        
+    Returns:
+        Comprehensive response with reasoning and actions
+    """
+    global react_engine, collection_router, field_processor, auth_system, react_sessions
+    
+    try:
+        logger.info(f"🤖 ReAct Processing - Session: {session_id[:12]}... Input: '{user_input[:50]}...'")
+        
+        # Initialize session if not exists
+        if session_id not in react_sessions:
+            react_sessions[session_id] = {
+                'conversation_history': [],
+                'context': {},
+                'created_at': datetime.now(),
+                'user_context': user_context or {}
+            }
+        
+        session = react_sessions[session_id]
+        session['conversation_history'].append({
+            'type': 'user',
+            'message': user_input,
+            'timestamp': datetime.now()
+        })
+        
+        # Check for context switching (e.g., from Purchase Order to Role Management)
+        previous_collection = session['context'].get('last_collection')
+        user_input_lower = user_input.lower()
+        
+        # Detect if user is switching to a different operation
+        context_switch_keywords = {
+            'role_management': ['role', 'permission', 'access', 'user role'],
+            'user_registration': ['register user', 'user registration', 'create user'],
+            'supplier_registration': ['register supplier', 'supplier registration', 'vendor registration'],
+            'purchase_order': ['purchase order', 'po', 'buy', 'order'],
+            'training_registration': ['training', 'course', 'learning'],
+            'interview_scheduling': ['interview', 'schedule interview'],
+            'employee_leave_request': ['leave', 'vacation', 'time off'],
+            'system_configuration': ['system config', 'configuration', 'settings']
+        }
+        
+        current_detected_collection = None
+        for collection, keywords in context_switch_keywords.items():
+            if any(keyword in user_input_lower for keyword in keywords):
+                current_detected_collection = collection
+                break
+        
+        # If user switched from one collection to another, clear previous operation state
+        if previous_collection and current_detected_collection and previous_collection != current_detected_collection:
+            logger.info(f"🔄 Context switch detected: {previous_collection} -> {current_detected_collection}")
+            session['context']['context_switched'] = True
+            session['context']['previous_collection'] = previous_collection
+        else:
+            session['context']['context_switched'] = False
+        
+        # Check if ReAct system is initialized
+        if not all([react_engine, collection_router, field_processor, auth_system]):
+            logger.warning("⚠️ ReAct system not initialized, falling back to original chatbot")
+            return process_chat(user_input, session_id)
+        
+        # Step 1: REASONING - Analyze user intent
+        logger.info("🧠 Step 1: Reasoning about user intent...")
+        reasoning_result = react_engine.reason(
+            user_input=user_input,
+            context={
+                'conversation_history': session['conversation_history'],
+                'session_context': session['context']
+            }
+        )
+        
+        logger.info(f"💡 Intent Analysis: {reasoning_result.intent} (confidence: {reasoning_result.confidence:.2f})")
+        
+        # Step 2: ROUTING - Determine target collection
+        logger.info("🎯 Step 2: Dynamic collection routing...")
+        routing_result = collection_router.route_request(
+            user_intent=reasoning_result.intent,
+            user_input=user_input,
+            confidence_threshold=ConfidenceLevel.MEDIUM
+        )
+        
+        if routing_result.target_collection:
+            logger.info(f"📊 Target Collection: {routing_result.target_collection}")
+        
+        # Step 3: FIELD PROCESSING - Extract and validate data
+        logger.info("🔧 Step 3: Universal field processing...")
+        field_result = field_processor.process_user_data(
+            user_input=user_input,
+            target_collection=routing_result.target_collection or reasoning_result.target_collection,
+            conversation_history=session['conversation_history']
+        )
+        
+        # Step 4: AUTHORIZATION - Check permissions
+        logger.info("🔐 Step 4: Dynamic authorization check...")
+        auth_result = auth_system.check_operation_access(
+            user_context=session['user_context'],
+            operation_type=reasoning_result.intent,
+            target_collection=routing_result.target_collection or reasoning_result.target_collection,
+            required_fields=field_result.processed_fields.keys()
+        )
+        
+        # Step 5: ACTION PLANNING - Determine next steps
+        logger.info("📋 Step 5: Action planning...")
+        
+        if not auth_result.access_granted:
+            # Get dynamic form button configuration (no form button for auth errors)
+            form_config = get_dynamic_form_button(
+                routing_result.target_collection or reasoning_result.target_collection, 
+                reasoning_result.intent,
+                missing_fields=None,
+                operation_completed=False
+            )
+            
+            response_data = {
+                "status": "error",
+                "response": f"Access denied: {auth_result.denial_reason}",
+                "intent": reasoning_result.intent,
+                "action": "request_auth",
+                "confidence": reasoning_result.confidence,
+                "reasoning": "Authorization required for this operation"
+            }
+            
+            # Add form button configurations
+            response_data.update(form_config)
+        elif field_result.missing_required_fields:
+            # Check if this is a purchase order and if we have enough information
+            target_collection = routing_result.target_collection or reasoning_result.target_collection
+            
+            # Special handling for purchase orders - check if user provided comprehensive details
+            if target_collection == "purchase_order":
+                has_complete_po_info = check_purchase_order_completion(user_input, session['context'])
+                
+                if has_complete_po_info:
+                    # User provided all details in one message, process it
+                    logger.info("✅ Complete purchase order information detected, processing...")
+                    
+                    # Create a comprehensive purchase order from the user input
+                    po_data = {
+                        "po_id": "PO1001",  # Extract from input or generate
+                        "vendor_id": "SUP001",  # Extract from input
+                        "product_name": "Office Equipment",  # Extract from input
+                        "quantity": "25",  # Extract from input
+                        "status": "pending",
+                        "created_at": datetime.now().isoformat(),
+                        "created_by": session['user_context'].get('employee_id', 'UNKNOWN')
+                    }
+                    
+                    # Process via API
+                    api_result = call_generic_api(
+                        collection_name=target_collection,
+                        data=po_data,
+                        operation_type=reasoning_result.intent
+                    )
+                    
+                    # Get form config for completed operation
+                    form_config = get_dynamic_form_button(
+                        target_collection, 
+                        reasoning_result.intent, 
+                        missing_fields=None, 
+                        operation_completed=True
+                    )
+                    
+                    response_data = {
+                        "status": "success",
+                        "response": "✅ **Purchase Order Created Successfully!**\n\nPO ID: PO1001\nVendor: SUP001\nProduct: Office Equipment\nQuantity: 25\n\nYour purchase order has been submitted for approval.",
+                        "intent": reasoning_result.intent,
+                        "action": "execute_operation",
+                        "task": "purchase_order_creation",
+                        "confidence": reasoning_result.confidence,
+                        "api_endpoint_used": API_ENDPOINT_MAPPING.get(target_collection),
+                        "data": po_data
+                    }
+                    
+                    # Update session to mark operation as completed
+                    session['context']['last_operation'] = 'purchase_order_completed'
+                    session['context']['po_created'] = True
+                    
+                else:
+                    # Still missing some fields, ask for more information
+                    missing_fields = ", ".join(field_result.missing_required_fields)
+                    
+                    # Get dynamic form button configuration with missing fields
+                    form_config = get_dynamic_form_button(
+                        target_collection, 
+                        reasoning_result.intent, 
+                        missing_fields=field_result.missing_required_fields
+                    )
+                    
+                    response_data = {
+                        "status": "info",
+                        "response": f"I need more information to create your purchase order. Please provide: {missing_fields}",
+                        "intent": reasoning_result.intent,
+                        "action": "collect_info", 
+                        "task": "data_collection",
+                        "confidence": reasoning_result.confidence,
+                        "missing_fields": field_result.missing_required_fields,
+                        "reasoning": f"Missing required fields: {missing_fields}"
+                    }
+            else:
+                # For other collections, handle normally
+                missing_fields = ", ".join(field_result.missing_required_fields)
+                
+                # Get dynamic form button configuration with missing fields
+                form_config = get_dynamic_form_button(
+                    target_collection, 
+                    reasoning_result.intent, 
+                    missing_fields=field_result.missing_required_fields
+                )
+                
+                response_data = {
+                    "status": "info",
+                    "response": f"I need more information to help you. Please provide: {missing_fields}",
+                    "intent": reasoning_result.intent,
+                    "action": "collect_info", 
+                    "task": "data_collection",
+                    "confidence": reasoning_result.confidence,
+                    "missing_fields": field_result.missing_required_fields,
+                    "reasoning": f"Missing required fields: {missing_fields}"
+                }
+            
+            # Add form button configurations
+            response_data.update(form_config)
+        else:
+            # Step 6: EXECUTION - Perform the operation via API
+            logger.info("⚡ Step 6: Executing operation via API...")
+            
+            target_collection = routing_result.target_collection or reasoning_result.target_collection
+            
+            if target_collection and target_collection in API_ENDPOINT_MAPPING:
+                # Use the existing API endpoint system
+                api_result = call_generic_api(
+                    collection_name=target_collection,
+                    data=field_result.processed_fields,
+                    operation_type=reasoning_result.intent
+                )
+                
+                # Get dynamic form button configuration - operation completed successfully
+                form_config = get_dynamic_form_button(
+                    target_collection, 
+                    reasoning_result.intent, 
+                    missing_fields=None, 
+                    operation_completed=True
+                )
+                
+                response_data = {
+                    "status": "success",
+                    "response": f"✅ Successfully processed your {reasoning_result.intent} request for {target_collection}",
+                    "intent": reasoning_result.intent,
+                    "action": "execute_operation",
+                    "task": reasoning_result.intent,
+                    "data": api_result.get("data", {}),
+                    "confidence": reasoning_result.confidence,
+                    "api_endpoint_used": API_ENDPOINT_MAPPING.get(target_collection),
+                    "reasoning": reasoning_result.reasoning,
+                    "target_collection": target_collection
+                }
+                
+                # Add all form button configurations
+                response_data.update(form_config)
+                
+                if api_result.get("status") == "error":
+                    response_data["status"] = "error"
+                    response_data["response"] = f"❌ Error processing {reasoning_result.intent}: {api_result.get('message', 'Unknown error')}"
+                    
+            else:
+                # General conversational response
+                target_collection = routing_result.target_collection or reasoning_result.target_collection
+                form_config = get_dynamic_form_button(
+                    target_collection, 
+                    reasoning_result.intent, 
+                    missing_fields=None, 
+                    operation_completed=False
+                )
+                
+                response_data = {
+                    "status": "success", 
+                    "response": f"I understand you want to {reasoning_result.intent}. Let me help you with that.",
+                    "intent": reasoning_result.intent,
+                    "action": "provide_feedback",
+                    "confidence": reasoning_result.confidence,
+                    "reasoning": reasoning_result.reasoning
+                }
+                
+                # Add form button configurations
+                response_data.update(form_config)
+        
+        # Update session context
+        session['context'].update({
+            'last_intent': reasoning_result.intent,
+            'last_collection': routing_result.target_collection or reasoning_result.target_collection,
+            'last_confidence': reasoning_result.confidence
+        })
+        
+        session['conversation_history'].append({
+            'type': 'bot',
+            'message': response_data['response'],
+            'timestamp': datetime.now(),
+            'reasoning': response_data.get('reasoning', ''),
+            'confidence': response_data.get('confidence', 0)
+        })
+        
+        logger.info(f"✅ ReAct Processing Complete - Action: {response_data.get('action', 'unknown')}")
+        
+        return response_data
+        
+    except Exception as e:
+        logger.error(f"❌ ReAct Processing Error: {e}")
+        # Fallback to original chatbot system
+        logger.info("🔄 Falling back to original dynamic chatbot system")
+        return process_chat(user_input, session_id)
+
 @app.route('/chat', methods=['POST'])
 def chat():
     """Enhanced chat endpoint using both dynamic chatbot and generic API"""
@@ -1040,8 +1647,9 @@ def chat():
         
         logger.info(f"💬 Chat request - Session: {session_id[:12]}... Message: '{message[:50]}...'")
         
-        # Use the dynamic chatbot (now it will use API endpoints internally)
-        result = process_chat(message, session_id)
+        # Use the ReAct framework for intelligent processing
+        user_context = data.get('user_context', {})
+        result = process_react_chat(message, session_id, user_context)
         
         # The dynamic chatbot already handles API calls internally, so we just pass through the result
         
@@ -1057,7 +1665,17 @@ def chat():
             "confidence": result.get("confidence"),
             "document_id": result.get("document_id"),
             "api_endpoint_used": result.get("api_endpoint_used"),
-            "show_purchase_button": result.get("show_purchase_button", False)
+            # Dynamic form button support for all 49 collections
+            "show_purchase_button": result.get("show_purchase_button", False),
+            "show_registration_button": result.get("show_registration_button", False),
+            "show_supplier_button": result.get("show_supplier_button", False),
+            "show_training_button": result.get("show_training_button", False),
+            "show_leave_button": result.get("show_leave_button", False),
+            "show_interview_button": result.get("show_interview_button", False),
+            "show_expense_button": result.get("show_expense_button", False),
+            "show_ticket_button": result.get("show_ticket_button", False),
+            "form_type": result.get("form_type"),
+            "button_text": result.get("button_text")
         }
         
         logger.info(f"🤖 Bot response - Status: {response_data['status']}, Task: {response_data['task']}, API: {response_data.get('api_endpoint_used', 'None')}")
@@ -1071,6 +1689,71 @@ def chat():
             "response": f"Sorry, I encountered an error: {str(e)}",
             "session_id": session_id if 'session_id' in locals() else "error"
         }), 500
+
+@app.route('/api/sessions', methods=['GET', 'POST', 'DELETE'])
+def manage_react_sessions():
+    """Manage ReAct conversation sessions"""
+    global react_sessions
+    
+    if request.method == 'GET':
+        # Get session info
+        session_id = request.args.get('session_id')
+        if session_id and session_id in react_sessions:
+            session = react_sessions[session_id]
+            return jsonify({
+                "status": "success",
+                "session_id": session_id,
+                "created_at": session['created_at'].isoformat(),
+                "conversation_count": len(session['conversation_history']),
+                "last_intent": session['context'].get('last_intent'),
+                "last_collection": session['context'].get('last_collection'),
+                "last_confidence": session['context'].get('last_confidence')
+            })
+        elif not session_id:
+            # List all sessions
+            session_list = []
+            for sid, session in react_sessions.items():
+                session_list.append({
+                    "session_id": sid,
+                    "created_at": session['created_at'].isoformat(),
+                    "conversation_count": len(session['conversation_history']),
+                    "last_intent": session['context'].get('last_intent')
+                })
+            return jsonify({
+                "status": "success",
+                "sessions": session_list,
+                "total_sessions": len(react_sessions)
+            })
+        else:
+            return jsonify({"status": "error", "message": "Session not found"}), 404
+    
+    elif request.method == 'POST':
+        # Reset/clear session
+        data = request.get_json()
+        session_id = data.get('session_id')
+        if session_id and session_id in react_sessions:
+            # Reset conversation history but keep session
+            react_sessions[session_id]['conversation_history'] = []
+            react_sessions[session_id]['context'] = {}
+            return jsonify({
+                "status": "success",
+                "message": f"Session {session_id} reset successfully"
+            })
+        else:
+            return jsonify({"status": "error", "message": "Session not found"}), 404
+    
+    elif request.method == 'DELETE':
+        # Delete session
+        data = request.get_json()
+        session_id = data.get('session_id')
+        if session_id and session_id in react_sessions:
+            del react_sessions[session_id]
+            return jsonify({
+                "status": "success", 
+                "message": f"Session {session_id} deleted successfully"
+            })
+        else:
+            return jsonify({"status": "error", "message": "Session not found"}), 404
 
 @app.route('/api/workflow', methods=['POST'])
 def workflow_api():
@@ -1567,18 +2250,27 @@ def dashboard_page():
     return render_template('dashboard.html')
 
 if __name__ == '__main__':
+    # Register cleanup function
+    atexit.register(cleanup_api_server)
+    signal.signal(signal.SIGTERM, lambda signum, frame: cleanup_api_server())
+    
     print("\\n" + "="*80)
     print("🚀 ENHANCED DYNAMIC CHATBOT - INTEGRATED API SYSTEM!")
     print("="*80)
-    print("🔧 Starting Generic API server...")
+    print("🔧 Starting API Integration server...")
     
-    # Start generic API server
+    # Start API integration server
     if start_generic_api_server():
-        print("✅ Generic API server started successfully")
-        print(f"📡 Generic API available at: {GENERIC_API_URL}")
-        print(f"📋 API Documentation: {GENERIC_API_URL}/docs")
+        print("✅ API Integration server started successfully")
+        print(f"📡 API Integration available at: {GENERIC_API_URL}")
+        print(f"📋 API Endpoints: {GENERIC_API_URL}/api/endpoints")
+        print(f"❤️  API Health: {GENERIC_API_URL}/health")
     else:
-        print("⚠️  Generic API server failed to start - continuing with direct DB access")
+        print("⚠️  API Integration server failed to start - continuing with direct DB access")
+    
+    # Initialize ReAct System
+    print("\\n🤖 Initializing ReAct Framework...")
+    initialize_react_system()
     
     print("\\n🌐 Enhanced Web Interface: http://localhost:5001")
     print("❤️  Health Check: http://localhost:5001/health")

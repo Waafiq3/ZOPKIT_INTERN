@@ -1,323 +1,196 @@
 """
-User Registration Validation System
-===================================
-
-This module provides comprehensive validation for user registration including:
-- Email uniqueness validation
-- Mobile number format validation (Indian numbers)
-- ID uniqueness validation (except Employee ID)
-- Integration with MongoDB database
-
-Requirements:
-1. Email IDs must be unique
-2. Mobile numbers must be 10 digits starting with 6, 7, 8, or 9
-3. All IDs except Employee ID must be unique
-4. Proper error messaging
+User Validation System for ZOPKIT Enterprise Chatbot
+Provides validation functions for user data and registrations
 """
 
 import re
 import logging
-from typing import Dict, Any, List, Tuple
-from pymongo import MongoClient
-from datetime import datetime
+from typing import Dict, Any, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-class UserRegistrationValidator:
-    def __init__(self, db_connection_string: str = "mongodb://localhost:27017", db_name: str = "enterprise_db"):
-        """Initialize validator with database connection"""
-        self.client = MongoClient(db_connection_string)
-        self.db = self.client[db_name]
-        self.user_collection = self.db["user_registration"]
-        
-        # Define which fields must be unique (excluding employee_id)
-        self.unique_fields = {
-            'email', 'asset_id', 'user_id', 'badge_id', 'card_id', 
-            'license_id', 'passport_id', 'national_id', 'tax_id'
-        }
-        
-    def validate_email_format(self, email: str) -> Tuple[bool, str]:
-        """Validate email format"""
-        if not email:
-            return False, "Email is required"
-            
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(email_pattern, email):
-            return False, "Invalid email format"
-            
-        return True, ""
+def validate_user_data(user_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Validate user registration data
     
-    def validate_email_uniqueness(self, email: str, exclude_id: str = None) -> Tuple[bool, str]:
-        """Check if email already exists in database"""
-        try:
-            query = {"email": email.lower()}
-            if exclude_id:
-                query["_id"] = {"$ne": exclude_id}
-                
-            existing_user = self.user_collection.find_one(query)
-            if existing_user:
-                return False, "Email ID already exists"
-                
-            return True, ""
-        except Exception as e:
-            logger.error(f"Email uniqueness check failed: {e}")
-            return False, "Database error during email validation"
+    Args:
+        user_data: Dictionary containing user information
+        
+    Returns:
+        Dictionary with validation results
+    """
+    validation_result = {
+        "valid": True,
+        "errors": [],
+        "warnings": [],
+        "cleaned_data": user_data.copy()
+    }
     
-    def validate_mobile_number(self, mobile: str) -> Tuple[bool, str]:
-        """
-        Validate Indian mobile number format
-        Rules: 
-        - Must be exactly 10 digits
-        - Must start with 6, 7, 8, or 9
-        - No letters or special characters
-        """
-        if not mobile:
-            return False, "Mobile number is required"
-        
-        # Remove any spaces or formatting
-        mobile_clean = re.sub(r'[^\d]', '', mobile)
-        
-        # Check if contains any letters
-        if re.search(r'[a-zA-Z]', mobile):
-            return False, "Mobile number cannot contain letters"
-        
-        # Check length
-        if len(mobile_clean) != 10:
-            return False, "Mobile number must be exactly 10 digits"
-        
-        # Check if starts with valid digits (6, 7, 8, 9)
-        if not mobile_clean.startswith(('6', '7', '8', '9')):
-            return False, "Mobile number must start with 6, 7, 8, or 9"
-        
-        # Check if all characters are digits
-        if not mobile_clean.isdigit():
-            return False, "Mobile number must contain only digits"
-            
-        return True, ""
-    
-    def validate_mobile_uniqueness(self, mobile: str, exclude_id: str = None) -> Tuple[bool, str]:
-        """Check if mobile number already exists"""
-        try:
-            mobile_clean = re.sub(r'[^\d]', '', mobile)
-            query = {"mobile": mobile_clean}
-            if exclude_id:
-                query["_id"] = {"$ne": exclude_id}
-                
-            existing_user = self.user_collection.find_one(query)
-            if existing_user:
-                return False, "Mobile number already exists"
-                
-            return True, ""
-        except Exception as e:
-            logger.error(f"Mobile uniqueness check failed: {e}")
-            return False, "Database error during mobile validation"
-    
-    def validate_id_uniqueness(self, field_name: str, field_value: str, exclude_id: str = None) -> Tuple[bool, str]:
-        """
-        Validate uniqueness of ID fields (except employee_id)
-        """
-        if field_name.lower() == 'employee_id':
-            return True, ""  # Employee ID can repeat
-            
-        if field_name.lower() in self.unique_fields and field_value:
-            try:
-                query = {field_name.lower(): field_value}
-                if exclude_id:
-                    query["_id"] = {"$ne": exclude_id}
-                    
-                existing_record = self.user_collection.find_one(query)
-                if existing_record:
-                    return False, f"{field_name.replace('_', ' ').title()} already exists"
-                    
-                return True, ""
-            except Exception as e:
-                logger.error(f"ID uniqueness check failed for {field_name}: {e}")
-                return False, f"Database error during {field_name} validation"
-        
-        return True, ""
-    
-    def validate_required_fields(self, user_data: Dict[str, Any]) -> Tuple[bool, List[str]]:
-        """Validate required fields are present"""
-        required_fields = ['email', 'first_name', 'last_name']
-        missing_fields = []
-        
-        for field in required_fields:
-            if not user_data.get(field, '').strip():
-                missing_fields.append(field.replace('_', ' ').title())
-        
-        if missing_fields:
-            return False, missing_fields
-            
-        return True, []
-    
-    def validate_user_registration(self, user_data: Dict[str, Any], exclude_id: str = None) -> Tuple[bool, List[str]]:
-        """
-        Comprehensive validation for user registration
-        Returns: (is_valid, error_messages)
-        """
-        errors = []
-        
-        # 1. Check required fields
-        valid_required, missing_fields = self.validate_required_fields(user_data)
-        if not valid_required:
-            errors.append(f"Missing required fields: {', '.join(missing_fields)}")
-        
-        # 2. Validate email format
-        email = user_data.get('email', '').strip()
-        if email:
-            valid_email_format, email_error = self.validate_email_format(email)
-            if not valid_email_format:
-                errors.append(email_error)
-            else:
-                # 3. Check email uniqueness
-                valid_email_unique, email_unique_error = self.validate_email_uniqueness(email, exclude_id)
-                if not valid_email_unique:
-                    errors.append(email_unique_error)
-        
-        # 4. Validate mobile number if provided
-        mobile = user_data.get('mobile', '').strip()
-        if mobile:
-            valid_mobile_format, mobile_error = self.validate_mobile_number(mobile)
-            if not valid_mobile_format:
-                errors.append(mobile_error)
-            else:
-                # Check mobile uniqueness
-                valid_mobile_unique, mobile_unique_error = self.validate_mobile_uniqueness(mobile, exclude_id)
-                if not valid_mobile_unique:
-                    errors.append(mobile_unique_error)
-        
-        # 5. Validate ID field uniqueness
-        for field_name, field_value in user_data.items():
-            if field_name.lower() in self.unique_fields and field_value:
-                valid_id, id_error = self.validate_id_uniqueness(field_name, str(field_value).strip(), exclude_id)
-                if not valid_id:
-                    errors.append(id_error)
-        
-        return len(errors) == 0, errors
-    
-    def get_validation_summary(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Get detailed validation summary for debugging"""
-        summary = {
-            "timestamp": datetime.now().isoformat(),
-            "validations_performed": [],
-            "passed": [],
-            "failed": []
-        }
-        
+    try:
         # Email validation
-        email = user_data.get('email', '').strip()
-        if email:
-            summary["validations_performed"].append("email_format")
-            summary["validations_performed"].append("email_uniqueness")
-            
-            valid_format, format_error = self.validate_email_format(email)
-            if valid_format:
-                summary["passed"].append("email_format")
-                valid_unique, unique_error = self.validate_email_uniqueness(email)
-                if valid_unique:
-                    summary["passed"].append("email_uniqueness")
-                else:
-                    summary["failed"].append(f"email_uniqueness: {unique_error}")
+        if "email" in user_data:
+            email = user_data["email"]
+            if not email or not isinstance(email, str):
+                validation_result["errors"].append("Email is required and must be a string")
+                validation_result["valid"] = False
+            elif not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+                validation_result["errors"].append("Invalid email format")
+                validation_result["valid"] = False
             else:
-                summary["failed"].append(f"email_format: {format_error}")
-        
-        # Mobile validation
-        mobile = user_data.get('mobile', '').strip()
-        if mobile:
-            summary["validations_performed"].append("mobile_format")
-            summary["validations_performed"].append("mobile_uniqueness")
-            
-            valid_format, format_error = self.validate_mobile_number(mobile)
-            if valid_format:
-                summary["passed"].append("mobile_format")
-                valid_unique, unique_error = self.validate_mobile_uniqueness(mobile)
-                if valid_unique:
-                    summary["passed"].append("mobile_uniqueness")
-                else:
-                    summary["failed"].append(f"mobile_uniqueness: {unique_error}")
-            else:
-                summary["failed"].append(f"mobile_format: {format_error}")
-        
-        return summary
-
-# Convenience functions for easy integration
-def validate_user_data(user_data: Dict[str, Any], exclude_id: str = None) -> Tuple[bool, List[str]]:
-    """Quick validation function"""
-    validator = UserRegistrationValidator()
-    return validator.validate_user_registration(user_data, exclude_id)
-
-def validate_mobile_number_quick(mobile: str) -> Tuple[bool, str]:
-    """Quick mobile number validation"""
-    validator = UserRegistrationValidator()
-    return validator.validate_mobile_number(mobile)
-
-def validate_email_quick(email: str) -> Tuple[bool, str]:
-    """Quick email validation"""
-    validator = UserRegistrationValidator()
-    valid_format, format_error = validator.validate_email_format(email)
-    if not valid_format:
-        return False, format_error
-    
-    valid_unique, unique_error = validator.validate_email_uniqueness(email)
-    return valid_unique, unique_error
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Test cases
-    test_cases = [
-        {
-            "name": "Valid user",
-            "data": {
-                "email": "test@example.com",
-                "mobile": "9876543210",
-                "first_name": "John",
-                "last_name": "Doe",
-                "asset_id": "AS001"
-            }
-        },
-        {
-            "name": "Invalid mobile - starts with 5",
-            "data": {
-                "email": "test2@example.com", 
-                "mobile": "5876543210",
-                "first_name": "Jane",
-                "last_name": "Doe"
-            }
-        },
-        {
-            "name": "Invalid mobile - contains letters",
-            "data": {
-                "email": "test3@example.com",
-                "mobile": "987654321A",
-                "first_name": "Bob",
-                "last_name": "Smith"
-            }
-        },
-        {
-            "name": "Invalid email format",
-            "data": {
-                "email": "invalid-email",
-                "mobile": "9876543210",
-                "first_name": "Alice",
-                "last_name": "Johnson"
-            }
-        }
-    ]
-    
-    validator = UserRegistrationValidator()
-    
-    print("🧪 Running User Registration Validation Tests")
-    print("=" * 50)
-    
-    for test_case in test_cases:
-        print(f"\n📋 Test: {test_case['name']}")
-        is_valid, errors = validator.validate_user_registration(test_case['data'])
-        
-        if is_valid:
-            print("✅ PASSED - User registration is valid")
+                # Clean and normalize email
+                validation_result["cleaned_data"]["email"] = email.lower().strip()
         else:
-            print("❌ FAILED - Validation errors:")
-            for error in errors:
-                print(f"   • {error}")
+            validation_result["errors"].append("Email is required")
+            validation_result["valid"] = False
         
-        print(f"📊 Summary: {validator.get_validation_summary(test_case['data'])}")
+        # Name validation
+        for field in ["first_name", "last_name"]:
+            if field in user_data:
+                name = user_data[field]
+                if not name or not isinstance(name, str):
+                    validation_result["errors"].append(f"{field.replace('_', ' ').title()} is required and must be a string")
+                    validation_result["valid"] = False
+                elif len(name.strip()) < 2:
+                    validation_result["errors"].append(f"{field.replace('_', ' ').title()} must be at least 2 characters long")
+                    validation_result["valid"] = False
+                else:
+                    # Clean and normalize name
+                    validation_result["cleaned_data"][field] = name.strip().title()
+            else:
+                validation_result["errors"].append(f"{field.replace('_', ' ').title()} is required")
+                validation_result["valid"] = False
+        
+        # Password validation (if provided)
+        if "password" in user_data:
+            password = user_data["password"]
+            if not password or not isinstance(password, str):
+                validation_result["errors"].append("Password is required and must be a string")
+                validation_result["valid"] = False
+            elif len(password) < 6:
+                validation_result["errors"].append("Password must be at least 6 characters long")
+                validation_result["valid"] = False
+            elif not re.search(r'[a-zA-Z]', password):
+                validation_result["warnings"].append("Password should contain at least one letter")
+            elif not re.search(r'[0-9]', password):
+                validation_result["warnings"].append("Password should contain at least one number")
+        
+        # Phone validation (if provided)
+        if "phone" in user_data and user_data["phone"]:
+            phone = str(user_data["phone"]).strip()
+            # Remove common separators
+            phone_clean = re.sub(r'[^\d+]', '', phone)
+            if len(phone_clean) < 10:
+                validation_result["warnings"].append("Phone number may be too short")
+            else:
+                validation_result["cleaned_data"]["phone"] = phone_clean
+        
+        # Employee ID validation (if provided)
+        if "employee_id" in user_data and user_data["employee_id"]:
+            emp_id = str(user_data["employee_id"]).strip()
+            if not re.match(r'^[A-Z]{3}\d{3}$', emp_id):
+                validation_result["warnings"].append("Employee ID should follow format: ABC123 (3 letters + 3 numbers)")
+            else:
+                validation_result["cleaned_data"]["employee_id"] = emp_id.upper()
+        
+        # Position validation (if provided)
+        if "position" in user_data and user_data["position"]:
+            position = user_data["position"].strip()
+            validation_result["cleaned_data"]["position"] = position.title()
+        
+        logger.info(f"✅ User validation completed - Valid: {validation_result['valid']}")
+        if validation_result["errors"]:
+            logger.warning(f"⚠️ Validation errors: {validation_result['errors']}")
+        if validation_result["warnings"]:
+            logger.info(f"💡 Validation warnings: {validation_result['warnings']}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error during user validation: {e}")
+        validation_result["valid"] = False
+        validation_result["errors"].append(f"Validation error: {str(e)}")
+    
+    return validation_result
+
+def validate_supplier_data(supplier_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Validate supplier registration data
+    
+    Args:
+        supplier_data: Dictionary containing supplier information
+        
+    Returns:
+        Dictionary with validation results
+    """
+    validation_result = {
+        "valid": True,
+        "errors": [],
+        "warnings": [],
+        "cleaned_data": supplier_data.copy()
+    }
+    
+    try:
+        # Company name validation
+        if "company_name" in supplier_data:
+            company_name = supplier_data["company_name"]
+            if not company_name or not isinstance(company_name, str):
+                validation_result["errors"].append("Company name is required and must be a string")
+                validation_result["valid"] = False
+            elif len(company_name.strip()) < 2:
+                validation_result["errors"].append("Company name must be at least 2 characters long")
+                validation_result["valid"] = False
+            else:
+                validation_result["cleaned_data"]["company_name"] = company_name.strip()
+        else:
+            validation_result["errors"].append("Company name is required")
+            validation_result["valid"] = False
+        
+        # Contact email validation
+        if "contact_email" in supplier_data:
+            email = supplier_data["contact_email"]
+            if not email or not isinstance(email, str):
+                validation_result["errors"].append("Contact email is required and must be a string")
+                validation_result["valid"] = False
+            elif not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+                validation_result["errors"].append("Invalid contact email format")
+                validation_result["valid"] = False
+            else:
+                validation_result["cleaned_data"]["contact_email"] = email.lower().strip()
+        else:
+            validation_result["errors"].append("Contact email is required")
+            validation_result["valid"] = False
+        
+        # Business type validation
+        if "business_type" in supplier_data and supplier_data["business_type"]:
+            business_type = supplier_data["business_type"].strip().lower()
+            valid_types = ["corporation", "llc", "partnership", "sole_proprietorship", "other"]
+            if business_type not in valid_types:
+                validation_result["warnings"].append(f"Business type should be one of: {', '.join(valid_types)}")
+            validation_result["cleaned_data"]["business_type"] = business_type
+        
+        # Tax ID validation (if provided)
+        if "tax_id" in supplier_data and supplier_data["tax_id"]:
+            tax_id = str(supplier_data["tax_id"]).strip()
+            # Basic tax ID format validation (US EIN format: XX-XXXXXXX)
+            if not re.match(r'^\d{2}-?\d{7}$', tax_id):
+                validation_result["warnings"].append("Tax ID should follow format: XX-XXXXXXX")
+            else:
+                # Normalize format
+                tax_id_clean = re.sub(r'[^0-9]', '', tax_id)
+                validation_result["cleaned_data"]["tax_id"] = f"{tax_id_clean[:2]}-{tax_id_clean[2:]}"
+        
+        logger.info(f"✅ Supplier validation completed - Valid: {validation_result['valid']}")
+        if validation_result["errors"]:
+            logger.warning(f"⚠️ Validation errors: {validation_result['errors']}")
+        if validation_result["warnings"]:
+            logger.info(f"💡 Validation warnings: {validation_result['warnings']}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error during supplier validation: {e}")
+        validation_result["valid"] = False
+        validation_result["errors"].append(f"Validation error: {str(e)}")
+    
+    return validation_result
+
+# For backward compatibility - main function used by dynamic_chatbot
+def validate_user_data_main(user_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Main validation function for backward compatibility"""
+    return validate_user_data(user_data)
